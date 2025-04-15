@@ -4,6 +4,15 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances
+import os
+import gdown
+
+# 📥 Télécharger le fichier CSV depuis Google Drive si non présent
+file_id = "1oE4DlrriUpKeUe8-NYBNEQ-6BJurG55D"
+output_path = "final.csv"
+
+if not os.path.exists(output_path):
+    gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
 # CONFIGURATION DE LA PAGE
 st.set_page_config(page_title="Dashboard DG - Segments utilisateurs", layout="wide")
@@ -13,9 +22,9 @@ st.markdown("---")
 
 # CHARGEMENT DES DONNÉES
 try:
-    df = pd.read_csv("final (4).csv")
+    df = pd.read_csv("final.csv")
 except FileNotFoundError:
-    st.error("Le fichier 'final (4).csv' est introuvable.")
+    st.error("Le fichier 'final.csv' est introuvable.")
     st.stop()
 
 # AGGRÉGATION PAR UTILISATEUR
@@ -158,7 +167,7 @@ user_info = user_df[user_df['visitor_id'] == selected_id]
 if not user_info.empty:
     st.markdown(f"### 👤 Infos pour l'utilisateur ID : `{selected_id}`")
 
-    st.dataframe(user_info[[
+    st.dataframe(user_info[[ 
         'rfm_recency', 'rfm_frequency', 'rfm_intensity',
         'engagement_score', 'engagement_density',
         'avg_actions_per_session', 'avg_session_duration',
