@@ -7,7 +7,7 @@ import gdown
 os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
 
 # --- Télécharger le fichier si besoin ---
-file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
+file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"  # Nouveau fichier Drive
 output_path = "final_owa.csv"
 
 if not os.path.exists(output_path):
@@ -147,7 +147,7 @@ dom_reco_map = {
 # --- Filtres dans la sidebar ---
 st.sidebar.header("🎯 Filtres utilisateur")
 all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
-selected_date = st.sidebar.selectbox("Date de clic :", ["Toutes"] + all_dates)
+selected_date = st.sidebar.selectbox("Date de clic :", ["Toutes"] + list(all_dates))
 selected_session = st.sidebar.selectbox("Session ID :", ["Tous"] + sorted(df['session_id'].dropna().unique()))
 selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(df['visitor_id'].dropna().unique()))
 selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(df['user_name'].dropna().unique()))
