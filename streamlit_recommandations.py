@@ -2,18 +2,19 @@ import streamlit as st
 import pandas as pd
 import os
 import gdown
+import matplotlib.pyplot as plt
 
 # Évite les problèmes sur Streamlit Cloud
 os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
 
 # --- Télécharger le fichier si besoin ---
-file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"  # Nouveau fichier Drive
+file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"
 output_path = "final_owa.csv"
 
 if not os.path.exists(output_path):
     gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
-# --- Chargement avec visitor_id en string (évite la notation scientifique) ---
+# --- Chargement ---
 df = pd.read_csv(
     output_path,
     sep=";",
@@ -52,7 +53,84 @@ def classify_interaction(row):
 
 df['interaction_type'] = df.apply(classify_interaction, axis=1)
 
-# --- Recos comportementales ---
+# --- Filtres dans la sidebar ---
+st.sidebar.header("🎯 Filtres utilisateur")
+all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
+selected_date = st.sidebar.selectbox("Date de clic :", ["Toutes"] + list(all_dates))
+selected_session = st.sidebar.selectbox("Session ID :", ["Tous"] + sorted(df['session_id'].dropna().unique()))
+selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(df['visitor_id'].dropna().unique()))
+selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(df['user_name_click'].dropna().unique()))
+selected_risk = st.sidebar.selectbox("Niveau de risque :", ["Tous"] + sorted(df['risk_level'].dropna().unique()))
+
+with st.sidebar.expander("ℹ️ Légende profils / interactions"):
+    st.markdown("""
+**Profils utilisateurs**  
+🔥 Utilisateurs actifs • 🟠 Visiteurs occasionnels  
+🟣 Engagement moyen • 🔴 Nouveaux utilisateurs • 🟢 Explorateurs passifs
+
+**Types d'interactions**  
+😴 Volatile • 🧠 Lecteur curieux • ⚡ Engagé silencieux  
+💥 Interactif actif • 📌 Standard
+""")
+
+# --- Application des filtres ---
+filtered_df = df.copy()
+if selected_date != "Toutes":
+    filtered_df = filtered_df[filtered_df['yyyymmdd_click'].dt.date == selected_date]
+if selected_session != "Tous":
+    filtered_df = filtered_df[filtered_df['session_id'] == selected_session]
+if selected_visitor != "Tous":
+    filtered_df = filtered_df[filtered_df['visitor_id'] == selected_visitor]
+if selected_user != "Tous":
+    filtered_df = filtered_df[filtered_df['user_name_click'] == selected_user]
+if selected_risk != "Tous":
+    filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
+
+# --- 📊 GRAPHIQUES ---
+st.markdown("## 📊 Statistiques globales")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("### Répartition des profils")
+    profil_counts = df['profil'].value_counts()
+    fig1, ax1 = plt.subplots()
+    ax1.pie(profil_counts, labels=profil_counts.index, autopct='%1.1f%%', startangle=90)
+    ax1.axis('equal')
+    st.pyplot(fig1)
+
+with col2:
+    st.markdown("### Durée moyenne des sessions par profil")
+    avg_duration = df.groupby('profil')['avg_session_duration'].mean().sort_values()
+    fig2, ax2 = plt.subplots()
+    ax2.barh(avg_duration.index, avg_duration.values)
+    ax2.set_xlabel("Durée moyenne (secondes)")
+    st.pyplot(fig2)
+
+st.markdown("### Répartition des types d’interactions")
+interaction_counts = df['interaction_type'].value_counts()
+fig3, ax3 = plt.subplots()
+ax3.bar(interaction_counts.index, interaction_counts.values)
+ax3.set_ylabel("Nombre d'utilisateurs")
+plt.xticks(rotation=45)
+st.pyplot(fig3)
+
+# --- Résumé des résultats ---
+if selected_date == "Toutes":
+    st.markdown("### 👥 Résultats : toutes les dates")
+else:
+    st.markdown(f"### 👥 Résultats pour le {selected_date}")
+st.write(f"Nombre d’utilisateurs : {len(filtered_df)}")
+
+if not filtered_df.empty:
+    st.dataframe(filtered_df[[
+        'yyyymmdd_click', 'visitor_id', 'user_name_click',
+        'profil', 'interaction_type', 'risk_level', 'engagement_score'
+    ]])
+else:
+    st.warning("Aucun utilisateur trouvé avec les filtres appliqués.")
+
+# --- ✅ Recommandations comportementales ---
 reco_map = {
     "💤 Volatile": {
         "objectif": "Réduire l’abandon à froid dès la première visite",
@@ -91,116 +169,22 @@ reco_map = {
     }
 }
 
-# --- Recos DOM ---
 dom_reco_map = {
-    "nav_menu_link": {
-        "objectif": "Faciliter l'accès rapide aux contenus",
-        "action": "Adapter la navigation aux rubriques préférées",
-        "ton": "Clair, organisé",
-        "canal": "Interface + email",
-        "cta": "🔎 Naviguez plus vite dans vos contenus favoris"
-    },
-    "read_more_btn": {
-        "objectif": "Proposer du contenu approfondi",
-        "action": "Recommander des articles longs ou des séries",
-        "ton": "Éditorial, expert",
-        "canal": "Email dossier",
-        "cta": "📘 Découvrez notre série spéciale"
-    },
-    "search_bar": {
-        "objectif": "Anticiper ses recherches",
-        "action": "Créer des suggestions ou alertes",
-        "ton": "Pratique, rapide",
-        "canal": "Interface + notification",
-        "cta": "🔔 Activez les alertes sur vos sujets préférés"
-    },
-    "video_player": {
-        "objectif": "Fidéliser via les vidéos",
-        "action": "Playlist ou suggestions vidéos",
-        "ton": "Visuel, immersif",
-        "canal": "Interface vidéo",
-        "cta": "🎬 Votre sélection vidéo vous attend"
-    },
-    "comment_field": {
-        "objectif": "Encourager l’expression",
-        "action": "Mettre en avant les débats en cours",
-        "ton": "Communautaire",
-        "canal": "Email + interface",
-        "cta": "💬 Rejoignez la discussion du moment"
-    },
-    "cta_banner_top": {
-        "objectif": "Transformer l’intérêt en fidélité",
-        "action": "Offre ou teaser exclusif",
-        "ton": "Promo, VIP",
-        "canal": "Email",
-        "cta": "🎁 Votre avant-première vous attend"
-    },
-    "footer_link_about": {
-        "objectif": "Comprendre son besoin discret",
-        "action": "Sondage simple ou assistant guidé",
-        "ton": "Curieux, bienveillant",
-        "canal": "Popup",
-        "cta": "🤔 On vous aide à trouver ce que vous cherchez ?"
-    }
+    "nav_menu_link": {"objectif": "Faciliter l'accès rapide aux contenus", "action": "Adapter la navigation aux rubriques préférées", "ton": "Clair, organisé", "canal": "Interface + email", "cta": "🔎 Naviguez plus vite dans vos contenus favoris"},
+    "read_more_btn": {"objectif": "Proposer du contenu approfondi", "action": "Recommander des articles longs ou des séries", "ton": "Éditorial, expert", "canal": "Email dossier", "cta": "📘 Découvrez notre série spéciale"},
+    "search_bar": {"objectif": "Anticiper ses recherches", "action": "Créer des suggestions ou alertes", "ton": "Pratique, rapide", "canal": "Interface + notification", "cta": "🔔 Activez les alertes sur vos sujets préférés"},
+    "video_player": {"objectif": "Fidéliser via les vidéos", "action": "Playlist ou suggestions vidéos", "ton": "Visuel, immersif", "canal": "Interface vidéo", "cta": "🎬 Votre sélection vidéo vous attend"},
+    "comment_field": {"objectif": "Encourager l’expression", "action": "Mettre en avant les débats en cours", "ton": "Communautaire", "canal": "Email + interface", "cta": "💬 Rejoignez la discussion du moment"},
+    "cta_banner_top": {"objectif": "Transformer l’intérêt en fidélité", "action": "Offre ou teaser exclusif", "ton": "Promo, VIP", "canal": "Email", "cta": "🎁 Votre avant-première vous attend"},
+    "footer_link_about": {"objectif": "Comprendre son besoin discret", "action": "Sondage simple ou assistant guidé", "ton": "Curieux, bienveillant", "canal": "Popup", "cta": "🤔 On vous aide à trouver ce que vous cherchez ?"}
 }
 
-# --- Filtres dans la sidebar ---
-st.sidebar.header("🎯 Filtres utilisateur")
-all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
-selected_date = st.sidebar.selectbox("Date de clic :", ["Toutes"] + list(all_dates))
-selected_session = st.sidebar.selectbox("Session ID :", ["Tous"] + sorted(df['session_id'].dropna().unique()))
-selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(df['visitor_id'].dropna().unique()))
-selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(df['user_name'].dropna().unique()))
-selected_risk = st.sidebar.selectbox("Niveau de risque :", ["Tous"] + sorted(df['risk_level'].dropna().unique()))
-
-# --- Légende dans la sidebar ---
-with st.sidebar.expander("ℹ️ Légende profils / interactions"):
-    st.markdown("""
-**Profils utilisateurs**  
-🔥 Utilisateurs actifs • 🟠 Visiteurs occasionnels  
-🟣 Engagement moyen • 🔴 Nouveaux utilisateurs • 🟢 Explorateurs passifs
-
-**Types d'interactions**  
-😴 Volatile • 🧠 Lecteur curieux • ⚡ Engagé silencieux  
-💥 Interactif actif • 📌 Standard
-""")
-
-# --- Application des filtres ---
-filtered_df = df.copy()
-if selected_date != "Toutes":
-    filtered_df = filtered_df[filtered_df['yyyymmdd_click'].dt.date == selected_date]
-if selected_session != "Tous":
-    filtered_df = filtered_df[filtered_df['session_id'] == selected_session]
-if selected_visitor != "Tous":
-    filtered_df = filtered_df[filtered_df['visitor_id'] == selected_visitor]
-if selected_user != "Tous":
-    filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
-if selected_risk != "Tous":
-    filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
-
-# --- Résumé des résultats ---
-if selected_date == "Toutes":
-    st.markdown("### 👥 Résultats : toutes les dates")
-else:
-    st.markdown(f"### 👥 Résultats pour le {selected_date}")
-st.write(f"Nombre d’utilisateurs : {len(filtered_df)}")
-
-if not filtered_df.empty:
-    st.dataframe(filtered_df[[
-        'yyyymmdd_click', 'visitor_id', 'user_name',
-        'profil', 'interaction_type', 'risk_level', 'engagement_score'
-    ]])
-else:
-    st.warning("Aucun utilisateur trouvé avec les filtres appliqués.")
-
-# --- ✅ Recommandations sans doublons ---
 st.markdown("## ✅ Recommandations par utilisateur (sans doublons)")
-
 unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'interaction_type', 'profil'])
 
 for idx, user in unique_users.iterrows():
     if user['interaction_type'] in reco_map:
-        with st.expander(f"👤 {user['user_name']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})", expanded=False):
+        with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})", expanded=False):
             reco = reco_map[user['interaction_type']]
             st.markdown("### 🎯 Comportement général")
             st.markdown(f"**Objectif :** {reco['objectif']}")
