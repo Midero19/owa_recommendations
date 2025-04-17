@@ -3,10 +3,6 @@ import pandas as pd
 import os
 import gdown
 
-# --- (optionnel mais recommandé sur Streamlit Cloud)
-import os
-os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
-
 # --- 📥 Téléchargement du fichier CSV si non présent ---
 file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
 output_path = "final_owa.csv"
