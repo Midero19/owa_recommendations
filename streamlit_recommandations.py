@@ -3,6 +3,7 @@ import streamlit as st
 st.markdown("""
 <div style='text-align: center; padding: 1rem 0;'>
     <h1 style='color: #4CAF50; font-size: 3rem;'>🧠 Moteur de recommandations utilisateurs</h1>
+    <p style='color: grey;'>Analyse comportementale et suggestions personnalisées en un clic</p>
 </div>
 """, unsafe_allow_html=True)
 import pandas as pd
@@ -130,6 +131,35 @@ if not filtered_df.empty:
 """, unsafe_allow_html=True)
     profil_counts = grouped_df['profil'].value_counts()
     st.bar_chart(profil_counts)
+
+    import altair as alt
+
+    st.markdown("""
+    <div style='text-align: center; margin-top: 3rem;'>
+        <h2 style='color: #1E88E5;'>📈 Évolution du score d'engagement</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
+    engagement_over_time = filtered_df.copy()
+    engagement_over_time = engagement_over_time[['yyyymmdd_click', 'engagement_score', 'visitor_id', 'user_name_click']].dropna()
+
+    if selected_visitor != "Tous":
+        title = f"Score d'engagement pour {selected_visitor}"
+        chart_data = engagement_over_time[engagement_over_time['visitor_id'] == selected_visitor]
+    else:
+        title = "Score d'engagement global (moyenne quotidienne)"
+        chart_data = engagement_over_time.groupby('yyyymmdd_click').agg({'engagement_score': 'mean'}).reset_index()
+
+    line_chart = alt.Chart(chart_data).mark_line(point=True).encode(
+        x='yyyymmdd_click:T',
+        y='engagement_score:Q'
+    ).properties(
+        width=700,
+        height=400,
+        title=title
+    )
+
+    st.altair_chart(line_chart, use_container_width=True)
 
     st.markdown("""
 <div style='text-align: center; margin-top: 3rem;'>
