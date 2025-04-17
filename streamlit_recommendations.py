@@ -19,7 +19,7 @@ st.markdown("---")
 
 # CHARGEMENT DES DONNÉES
 try:
-    df = pd.read_csv("final_owa.csv")
+    df = pd.read_csv("final_owa.csv", sep=None, engine="python", encoding="utf-8", on_bad_lines="skip")
 except FileNotFoundError:
     st.error("Le fichier 'final_owa.csv' est introuvable.")
     st.stop()
