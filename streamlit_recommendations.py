@@ -4,7 +4,7 @@ import numpy as np
 import os
 import gdown
 
-# 📥 Télécharger le fichier final_owa.csv depuis Google Drive si non présent
+# 📥 Télécharger le fichier CSV depuis Google Drive si non présent
 file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
 output_path = "final_owa.csv"
 
@@ -22,8 +22,8 @@ st.markdown("""
 # CHARGEMENT DES DONNÉES
 try:
     df = pd.read_csv("final_owa.csv", sep=None, engine="python", encoding="utf-8", on_bad_lines="skip")
-except FileNotFoundError:
-    st.error("Le fichier 'final_owa.csv' est introuvable.")
+except Exception as e:
+    st.error(f"Erreur de chargement : {e}")
     st.stop()
 
 # MAPPING DES PROFILS
@@ -36,37 +36,36 @@ mapping = {
 }
 df['profil'] = df['cluster'].map(mapping)
 
-usernames = df['user_name_click'].dropna().unique() if 'user_name_click' in df.columns else []
-
-# --- FILTRES DYNAMIQUES ---
+# --- FILTRES CONNECTÉS ---
 st.sidebar.header("🔍 Filtres utilisateurs")
+selected_profil = st.sidebar.multiselect("Filtrer par profil :", df['profil'].dropna().unique())
 
-selected_profil = st.sidebar.multiselect("Filtrer par profil:", df['profil'].dropna().unique())
-selected_actif = st.sidebar.selectbox("Actif récemment:", ["Tous", "Oui", "Non"])
-score_min, score_max = st.sidebar.slider("Score d'engagement:", float(df['engagement_score'].min()), float(df['engagement_score'].max()), (float(df['engagement_score'].min()), float(df['engagement_score'].max())))
+# Filtres dépendants
+usernames = df[df['profil'].isin(selected_profil)]['user_name_click'].dropna().unique() if selected_profil else df['user_name_click'].dropna().unique()
+selected_username = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(usernames)) if len(usernames) > 0 else "Tous"
 
-usernames_filtered = df[df['profil'].isin(selected_profil)]['user_name_click'].dropna().unique() if selected_profil else usernames
-selected_username = st.sidebar.selectbox("Filtrer par nom d'utilisateur:", options=["Tous"] + sorted(usernames_filtered)) if len(usernames_filtered) > 0 else "Tous"
+visitor_ids = df[df['profil'].isin(selected_profil)]['visitor_id'].unique() if selected_profil else df['visitor_id'].unique()
+selected_visitor_id = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(visitor_ids.astype(str)))
 
-# Filtre connecté pour visitor_id
-visitor_ids_filtered = df[df['profil'].isin(selected_profil)]['visitor_id'].unique() if selected_profil else df['visitor_id'].unique()
-selected_visitor_id = st.sidebar.selectbox("Filtrer par visitor_id:", options=["Tous"] + sorted(visitor_ids_filtered.astype(str)))
+selected_actif = st.sidebar.selectbox("Actif récemment :", ["Tous", "Oui", "Non"])
+score_min, score_max = st.sidebar.slider("Score d'engagement :", float(df['engagement_score'].min()), float(df['engagement_score'].max()), (float(df['engagement_score'].min()), float(df['engagement_score'].max())))
 
+# --- APPLICATION DES FILTRES ---
 filtered_df = df.copy()
 if selected_profil:
     filtered_df = filtered_df[filtered_df['profil'].isin(selected_profil)]
+if selected_username != "Tous":
+    filtered_df = filtered_df[filtered_df['user_name_click'] == selected_username]
 if selected_visitor_id != "Tous":
     filtered_df = filtered_df[filtered_df['visitor_id'] == int(selected_visitor_id)]
 if selected_actif != "Tous":
     filtered_df = filtered_df[filtered_df['is_recent_active'] == (1 if selected_actif == "Oui" else 0)]
 filtered_df = filtered_df[(filtered_df['engagement_score'] >= score_min) & (filtered_df['engagement_score'] <= score_max)]
-if selected_username != "Tous":
-    filtered_df = filtered_df[filtered_df['user_name_click'] == selected_username]
 
 # --- KPIs ---
 nb_total = len(df)
-nb_actifs = len(df[df["profil"] == "🔥 Utilisateurs actifs"])
-nb_passifs = len(df[df["profil"].isin(["🟠 Visiteurs occasionnels", "🟢 Explorateurs passifs"])])
+nb_actifs = len(df[df['profil'] == "🔥 Utilisateurs actifs"])
+nb_passifs = len(df[df['profil'].isin(["🟠 Visiteurs occasionnels", "🟢 Explorateurs passifs"])])
 pct_actifs = round(nb_actifs / nb_total * 100, 1)
 pct_passifs = round(nb_passifs / nb_total * 100, 1)
 
@@ -78,7 +77,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# --- INFO PROFIL DÉTAILLÉ ---
+# --- DÉTAIL D'UN UTILISATEUR ---
 st.markdown("---")
 st.markdown("## 🔎 Détail d'un utilisateur")
 
@@ -94,9 +93,10 @@ if selected_visitor_id != "Tous":
             'bounce_rate', 'is_recent_active'
         ]].T.rename(columns={selected_info.index[0]: "Valeur"}))
 
-# --- RECOMMANDATIONS ---
+# --- RECOMMANDATIONS PAR PROFIL ---
 st.markdown("---")
 st.markdown("## 💬 Recommandations par profil")
+
 reco_map = {
     "🟠 Visiteurs occasionnels": {
         "objectif": "Réengager avec contenu court & pertinent",
