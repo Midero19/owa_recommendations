@@ -183,4 +183,12 @@ if len(filtered_df) == 1:
             if top_dom in dom_reco_map:
                 dom_reco = dom_reco_map[top_dom]
                 st.markdown("---")
-                st.markdown("###
+                st.markdown("### 🔍 Élément DOM principal")
+                st.markdown(f"**Élément :** `{top_dom}`")
+                st.markdown(f"**Objectif :** {dom_reco.get('objectif')}")
+                st.markdown(f"**Action :** {dom_reco.get('action')}")
+                st.markdown(f"**Ton :** {dom_reco.get('ton')}")
+                st.markdown(f"**Canal :** {dom_reco.get('canal')}")
+                st.markdown(f"**CTA :** {dom_reco.get('cta')}")
+    else:
+        st.info("ℹ️ Cet utilisateur n’est pas à risque élevé.")
