@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import gdown
 
-# --- Télécharger le CSV depuis Google Drive si nécessaire ---
+# --- Téléchargement du fichier depuis Google Drive ---
 file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
 output_path = "final_owa.csv"
 
@@ -38,46 +38,46 @@ def classify_interaction(row):
 
 df['interaction_type'] = df.apply(classify_interaction, axis=1)
 
-# --- Recommandations comportementales générales ---
+# --- Recommandations comportementales ---
 reco_map = {
     "💤 Volatile": {
         "objectif": "Réduire l’abandon à froid dès la première visite",
-        "action": "Relancer par un email ou push dans l’heure avec un contenu percutant (type actu flash ou vidéo 30s)",
+        "action": "Relancer par un email ou push dans l’heure avec un contenu percutant",
         "ton": "Intrigant, FOMO",
         "canal": "Push / Email",
         "cta": "⏱️ Découvrez ce que vous avez manqué en 60 secondes !"
     },
     "🧠 Lecteur curieux": {
         "objectif": "Transformer sa curiosité en interaction",
-        "action": "Afficher un quiz, emoji ou bouton 'suivre ce thème' après 3 pages vues",
+        "action": "Afficher un quiz, emoji ou bouton 'suivre ce thème'",
         "ton": "Complice, engageant",
-        "canal": "Popup + email personnalisé",
+        "canal": "Popup + email",
         "cta": "📚 Activez les suggestions selon vos lectures"
     },
     "⚡ Engagé silencieux": {
         "objectif": "Lever les freins invisibles à l’action",
-        "action": "Ajouter un bouton de réaction ou une question douce en fin de contenu + email de valorisation",
+        "action": "Ajouter un bouton de réaction ou une question douce",
         "ton": "Encourageant, chaleureux",
-        "canal": "Interface + email à J+1",
+        "canal": "Interface + email",
         "cta": "👍 Vous avez aimé ce contenu ? Faites-le savoir en un clic"
     },
     "💥 Interactif actif": {
         "objectif": "Prévenir la frustration d’un utilisateur très impliqué",
-        "action": "Offrir un contenu VIP, un badge ou une invitation à s’exprimer sur les futures fonctionnalités",
+        "action": "Offrir un contenu VIP ou une invitation à contribuer",
         "ton": "Valorisant, exclusif",
         "canal": "Email personnalisé + interface",
         "cta": "🏅 Merci pour votre activité ! Voici un avant-goût en exclusivité"
     },
     "📌 Standard": {
-        "objectif": "Créer un déclic d’intérêt chez les profils indécis",
-        "action": "Envoyer une sélection personnalisée des contenus populaires",
+        "objectif": "Créer un déclic d’intérêt",
+        "action": "Envoyer une sélection des contenus populaires",
         "ton": "Positif, informatif",
         "canal": "Email hebdomadaire",
         "cta": "📬 Voici les contenus qui font vibrer notre communauté"
     }
 }
 
-# --- Recommandations DOM spécifiques ---
+# --- Recommandations DOM ---
 dom_reco_map = {
     "nav_menu_link": {
         "objectif": "Faciliter l'accès rapide aux contenus",
@@ -130,37 +130,75 @@ dom_reco_map = {
     }
 }
 
-# --- Filtres utilisateurs ---
-st.sidebar.header("🎯 Filtres")
-selected_profil = st.sidebar.multiselect("Profil utilisateur", df['profil'].dropna().unique())
-selected_interaction = st.sidebar.multiselect("Type d'interaction", df['interaction_type'].unique())
-selected_risk = st.sidebar.selectbox("Niveau de risque", [1, 2, 3])
-selected_user = st.sidebar.selectbox("Nom utilisateur", ["Tous"] + sorted(df['user_name'].dropna().unique()))
-score_min, score_max = st.sidebar.slider("Score d'engagement", float(df['engagement_score'].min()), float(df['engagement_score'].max()), (float(df['engagement_score'].min()), float(df['engagement_score'].max())))
+# --- Filtres contextuels basés sur la date ---
+st.sidebar.header("📅 Filtres par activité utilisateur")
 
-# --- Filtrage dynamique ---
-filtered_df = df.copy()
-if selected_profil:
-    filtered_df = filtered_df[filtered_df['profil'].isin(selected_profil)]
-if selected_interaction:
-    filtered_df = filtered_df[filtered_df['interaction_type'].isin(selected_interaction)]
-if selected_risk:
-    filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
+# Convertir yyyymmdd_click en datetime
+df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'], errors='coerce')
+available_dates = df['yyyymmdd_click'].dt.date.dropna().unique()
+
+selected_date = st.sidebar.date_input(
+    "Sélectionnez une date de clic :", 
+    min_value=min(available_dates), 
+    max_value=max(available_dates)
+)
+
+# Filtrage par date
+filtered_by_date = df[df['yyyymmdd_click'].dt.date == selected_date]
+
+# Session ID
+available_sessions = filtered_by_date['session_id'].dropna().unique()
+selected_session = st.sidebar.selectbox(
+    "Session ID :", ["Tous"] + sorted(map(str, available_sessions))
+)
+
+# Visitor ID
+available_visitors = filtered_by_date['visitor_id'].dropna().unique()
+selected_visitor = st.sidebar.selectbox(
+    "Visitor ID :", ["Tous"] + sorted(map(str, available_visitors))
+)
+
+# User name
+available_users = filtered_by_date['user_name'].dropna().unique()
+selected_user = st.sidebar.selectbox(
+    "Nom d'utilisateur :", ["Tous"] + sorted(available_users)
+)
+
+# Risk level
+available_risks = sorted(filtered_by_date['risk_level'].dropna().unique())
+selected_risk = st.sidebar.selectbox(
+    "Niveau de risque (1 = élevé)", ["Tous"] + available_risks
+)
+
+# --- Application des filtres cumulés ---
+filtered_df = filtered_by_date.copy()
+
+if selected_session != "Tous":
+    filtered_df = filtered_df[filtered_df['session_id'].astype(str) == selected_session]
+
+if selected_visitor != "Tous":
+    filtered_df = filtered_df[filtered_df['visitor_id'].astype(str) == selected_visitor]
+
 if selected_user != "Tous":
     filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
-filtered_df = filtered_df[(filtered_df['engagement_score'] >= score_min) & (filtered_df['engagement_score'] <= score_max)]
+
+if selected_risk != "Tous":
+    filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
 # --- Affichage des résultats ---
-st.markdown("## 👥 Résultats filtrés")
-st.dataframe(filtered_df[['visitor_id', 'user_name', 'profil', 'interaction_type', 'risk_level', 'engagement_score']])
+st.markdown(f"### 👥 {len(filtered_df)} utilisateur(s) trouvé(s) pour le {selected_date.strftime('%Y-%m-%d')}")
+if filtered_df.empty:
+    st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
+else:
+    st.dataframe(filtered_df[['visitor_id', 'user_name', 'profil', 'interaction_type', 'risk_level', 'engagement_score']])
 
-# --- Recommandation individuelle ---
+# --- Recommandation individuelle si un seul utilisateur sélectionné ---
 if len(filtered_df) == 1:
     user = filtered_df.iloc[0]
     st.markdown("## ✅ Recommandation personnalisée")
     if user['risk_level'] == 1:
         reco = reco_map.get(user['interaction_type'], {})
-        st.markdown("### 🎯 Basée sur le comportement global")
+        st.markdown("### 🎯 Basée sur le comportement général")
         st.markdown(f"**Objectif :** {reco.get('objectif')}")
         st.markdown(f"**Action :** {reco.get('action')}")
         st.markdown(f"**Ton :** {reco.get('ton')}")
@@ -182,5 +220,3 @@ if len(filtered_df) == 1:
                 st.markdown(f"**CTA :** {dom_reco.get('cta')}")
     else:
         st.info("ℹ️ Cet utilisateur n’est pas à risque élevé.")
-else:
-    st.info("🔍 Sélectionnez un seul utilisateur pour voir des recommandations détaillées.")
