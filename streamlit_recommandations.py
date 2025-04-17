@@ -140,8 +140,9 @@ if not filtered_df.empty:
         'profil', 'interaction_type', 'risk_level', 'engagement_score'
     ]])
 
-    st.markdown("## ✅ Recommandations personnalisées")
+st.markdown("## ✅ Recommandations personnalisées")
     unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'interaction_type', 'profil'])
+    dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 
     for _, user in unique_users.iterrows():
         if user['interaction_type'] in reco_map:
@@ -154,17 +155,15 @@ if not filtered_df.empty:
                 st.markdown(f"**Canal :** {reco['canal']}")
                 st.markdown(f"**CTA :** {reco['cta']}")
 
-                dom_clicks = df[df['visitor_id'] == user['visitor_id']]['dom_element_id'].dropna()
-                if not dom_clicks.empty:
-                    top_dom = dom_clicks.mode().iloc[0]
-                    if top_dom in dom_reco_map:
-                        dom = dom_reco_map[top_dom]
-                        st.markdown("### 🔍 Élément DOM principal")
-                        st.markdown(f"**Élément :** `{top_dom}`")
-                        st.markdown(f"**Objectif :** {dom['objectif']}")
-                        st.markdown(f"**Action :** {dom['action']}")
-                        st.markdown(f"**Ton :** {dom['ton']}")
-                        st.markdown(f"**Canal :** {dom['canal']}")
-                        st.markdown(f"**CTA :** {dom['cta']}")
+                top_dom = dom_by_visitor.get(user['visitor_id'])
+                if pd.notna(top_dom) and top_dom in dom_reco_map:
+                    dom = dom_reco_map[top_dom]
+                    st.markdown("### 🔍 Élément DOM principal")
+                    st.markdown(f"**Élément :** `{top_dom}`")
+                    st.markdown(f"**Objectif :** {dom['objectif']}")
+                    st.markdown(f"**Action :** {dom['action']}")
+                    st.markdown(f"**Ton :** {dom['ton']}")
+                    st.markdown(f"**Canal :** {dom['canal']}")
+                    st.markdown(f"**CTA :** {dom['cta']}")
 else:
     st.warning("Aucun utilisateur trouvé avec les filtres appliqués.")
