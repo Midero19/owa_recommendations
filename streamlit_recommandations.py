@@ -116,7 +116,8 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
-st.markdown("### 📈 Évolution du taux d'engagement moyen")
+# Graphique engagement
+st.markdown("## 📈 Évolution de l'engagement utilisateur")
 daily_engagement = (
     filtered_df.dropna(subset=["yyyymmdd_click", "engagement_score"])
     .groupby(filtered_df['yyyymmdd_click'].dt.date)["engagement_score"]
@@ -125,14 +126,16 @@ daily_engagement = (
 )
 
 if not daily_engagement.empty:
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(5, 2.5), constrained_layout=True)
     ax.plot(daily_engagement["yyyymmdd_click"], daily_engagement["engagement_score"], marker='o')
     ax.set_xlabel("Date")
     ax.set_ylabel("Score d'engagement moyen")
     ax.set_title("Évolution du taux d'engagement dans le temps")
     ax.grid(True)
     plt.xticks(rotation=45)
-    st.pyplot(fig)
+    col1, col2, col3 = st.columns([1, 6, 1])
+    with col2:
+        st.pyplot(fig)
 else:
     st.info("Pas de données disponibles pour afficher l'évolution.")
 
