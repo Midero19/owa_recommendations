@@ -12,11 +12,7 @@ st.set_page_config(
 )
 
 # 🧠 Titre principal
-st.title("📊 OWA – Tableau de bord comportemental")
-st.markdown("""
-Bienvenue dans l’interface d’analyse des comportements utilisateurs.  
-Filtrez, explorez, et découvrez des recommandations personnalisées basées sur l’activité réelle des visiteurs.  
-""")
+st.title("📊 OWA – Moteur de recommandations personnalisées")
 st.markdown("---")
 
 # 📦 Téléchargement + chargement des données
@@ -71,6 +67,97 @@ def safe_mode(series):
     mode = series.mode()
     return mode.iloc[0] if not mode.empty else "Non défini"
 
+# 🔁 Dictionnaires de recommandations
+reco_map = {
+    "💤 Volatile": {
+        "objectif": "Réduire l’abandon à froid dès la première visite",
+        "action": "Relancer par un email ou push dans l’heure avec un contenu percutant",
+        "ton": "Intrigant, FOMO",
+        "canal": "Push / Email",
+        "cta": "⏱ Découvrez ce que vous avez manqué en 60 secondes !"
+    },
+    "🧠 Lecteur curieux": {
+        "objectif": "Transformer sa curiosité en interaction",
+        "action": "Afficher un quiz, emoji ou bouton 'suivre ce thème'",
+        "ton": "Complice, engageant",
+        "canal": "Popup + email",
+        "cta": "📚 Activez les suggestions selon vos lectures"
+    },
+    "⚡ Engagé silencieux": {
+        "objectif": "Lever les freins invisibles à l’action",
+        "action": "Ajouter un bouton de réaction ou une question douce",
+        "ton": "Encourageant, chaleureux",
+        "canal": "Interface + email",
+        "cta": "👍 Vous avez aimé ce contenu ? Faites-le savoir en un clic"
+    },
+    "💥 Utilisateur très actif": {
+        "objectif": "Prévenir la frustration d’un utilisateur très impliqué",
+        "action": "Offrir un contenu VIP ou une invitation à contribuer",
+        "ton": "Valorisant, exclusif",
+        "canal": "Email personnalisé + interface",
+        "cta": "🏅 Merci pour votre activité ! Voici un avant-goût en exclusivité"
+    },
+    "📌 Standard": {
+        "objectif": "Créer un déclic d’intérêt",
+        "action": "Envoyer une sélection des contenus populaires",
+        "ton": "Positif, informatif",
+        "canal": "Email hebdomadaire",
+        "cta": "📬 Voici les contenus qui font vibrer notre communauté"
+    }
+}
+
+dom_reco_map = {
+    "nav_menu_link": {
+        "objectif": "Faciliter l'accès rapide aux contenus",
+        "action": "Adapter la navigation aux rubriques préférées",
+        "ton": "Clair, organisé",
+        "canal": "Interface + email",
+        "cta": "🔎 Naviguez plus vite dans vos contenus favoris"
+    },
+    "read_more_btn": {
+        "objectif": "Proposer du contenu approfondi",
+        "action": "Recommander des articles longs ou des séries",
+        "ton": "Éditorial, expert",
+        "canal": "Email dossier",
+        "cta": "📘 Découvrez notre série spéciale"
+    },
+    "search_bar": {
+        "objectif": "Anticiper ses recherches",
+        "action": "Créer des suggestions ou alertes",
+        "ton": "Pratique, rapide",
+        "canal": "Interface + notification",
+        "cta": "🔔 Activez les alertes sur vos sujets préférés"
+    },
+    "video_player": {
+        "objectif": "Fidéliser via les vidéos",
+        "action": "Playlist ou suggestions vidéos",
+        "ton": "Visuel, immersif",
+        "canal": "Interface vidéo",
+        "cta": "🎬 Votre sélection vidéo vous attend"
+    },
+    "comment_field": {
+        "objectif": "Encourager l’expression",
+        "action": "Mettre en avant les débats en cours",
+        "ton": "Communautaire",
+        "canal": "Email + interface",
+        "cta": "💬 Rejoignez la discussion du moment"
+    },
+    "cta_banner_top": {
+        "objectif": "Transformer l’intérêt en fidélité",
+        "action": "Offre ou teaser exclusif",
+        "ton": "Promo, VIP",
+        "canal": "Email",
+        "cta": "🎁 Votre avant-première vous attend"
+    },
+    "footer_link_about": {
+        "objectif": "Comprendre son besoin discret",
+        "action": "Sondage simple ou assistant guidé",
+        "ton": "Curieux, bienveillant",
+        "canal": "Popup",
+        "cta": "🤔 On vous aide à trouver ce que vous cherchez ?"
+    }
+}
+
 # 📥 Chargement des données
 df = load_data()
 
@@ -82,11 +169,11 @@ selected_session = st.sidebar.selectbox("🧾 Session ID :", ["Tous"] + sorted(d
 selected_visitor = st.sidebar.selectbox("🆔 Visitor ID :", ["Tous"] + sorted(df['visitor_id'].dropna().unique()))
 selected_user = st.sidebar.selectbox("👤 Nom d'utilisateur :", ["Tous"] + sorted(df['user_name_click'].dropna().unique()))
 selected_risk = st.sidebar.selectbox("⚠️ Niveau de risque :", ["Tous"] + sorted(df['risk_level'].dropna().unique()))
-
 st.sidebar.markdown("---")
 max_rows = st.sidebar.slider("📄 Nombre de lignes visibles :", 10, 500, 100)
 max_recos = st.sidebar.slider("🤖 Nb de recommandations :", 1, 20, 10)
 
+# 🔎 Application des filtres
 filtered_df = df.copy()
 if selected_date != "Toutes":
     filtered_df = filtered_df[filtered_df['yyyymmdd_click'].dt.date == selected_date]
@@ -122,7 +209,6 @@ else:
 
 # 📋 Résumé des utilisateurs
 st.markdown("## 👥 Résultats des utilisateurs filtrés")
-
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
         'yyyymmdd_click': 'min',
@@ -134,7 +220,6 @@ if not filtered_df.empty:
 
     st.dataframe(grouped_df.head(max_rows), use_container_width=True)
 
-    # ✅ Recommandations conditionnelles
     filters_applied = (
         selected_date != "Toutes"
         or selected_session != "Tous"
