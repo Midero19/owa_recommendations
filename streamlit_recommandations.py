@@ -3,7 +3,6 @@ import streamlit as st
 st.markdown("""
 <div style='text-align: center; padding: 1rem 0;'>
     <h1 style='color: #4CAF50; font-size: 3rem;'>🧠 Moteur de recommandations utilisateurs</h1>
-    <p style='color: grey;'>Analyse comportementale et suggestions personnalisées en un clic</p>
 </div>
 """, unsafe_allow_html=True)
 import pandas as pd
@@ -115,6 +114,14 @@ if not filtered_df.empty:
         'engagement_score': 'mean'
     }).reset_index()
 
+    st.markdown("""
+<div style='text-align: center; margin-top: 2rem;'>
+    <h2 style='color: #1E88E5;'>📊 Répartition des profils utilisateurs</h2>
+</div>
+""", unsafe_allow_html=True)
+    profil_counts = grouped_df['profil'].value_counts()
+    st.bar_chart(profil_counts, use_container_width=True)
+
     st.dataframe(grouped_df.style.set_properties(**{
         'background-color': '#111111',
         'color': 'white',
@@ -122,7 +129,7 @@ if not filtered_df.empty:
     }).set_table_styles([
         {'selector': 'th', 'props': [('font-size', '14px'), ('background-color', '#222'), ('color', 'white')]},
         {'selector': 'td', 'props': [('font-size', '13px')]},
-    ]), use_container_width=True)
+    ]))
 
     st.markdown("""
 <div style='text-align: center; margin-top: 2rem;'>
