@@ -116,8 +116,7 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
-# 📈 Évolution du taux d'engagement
-st.markdown("## 📈 Évolution de l'engagement utilisateur")
+st.markdown("### 📈 Évolution du taux d'engagement moyen")
 daily_engagement = (
     filtered_df.dropna(subset=["yyyymmdd_click", "engagement_score"])
     .groupby(filtered_df['yyyymmdd_click'].dt.date)["engagement_score"]
