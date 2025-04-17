@@ -3,21 +3,27 @@ import pandas as pd
 import os
 import gdown
 
-# (optionnel sur Streamlit Cloud pour éviter les plantages)
+# Évite les problèmes sur Streamlit Cloud
 os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
 
-# --- Télécharger le fichier CSV ---
+# --- Télécharger le fichier si besoin ---
 file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
 output_path = "final_owa.csv"
 
 if not os.path.exists(output_path):
     gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
-# --- Chargement des données ---
-df = pd.read_csv(output_path, sep=";", encoding="utf-8", on_bad_lines="skip", engine="python")
+# --- Chargement avec visitor_id en string (évite la notation scientifique) ---
+df = pd.read_csv(
+    output_path,
+    sep=";",
+    encoding="utf-8",
+    on_bad_lines="skip",
+    engine="python",
+    dtype={"visitor_id": str}
+)
 
-# --- Prétraitement ---
-df['visitor_id'] = df['visitor_id'].astype(str)
+# --- Nettoyage ---
 df['session_id'] = df['session_id'].astype(str)
 df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
 
@@ -46,7 +52,7 @@ def classify_interaction(row):
 
 df['interaction_type'] = df.apply(classify_interaction, axis=1)
 
-# --- Recommandations comportementales ---
+# --- Recos comportementales ---
 reco_map = {
     "💤 Volatile": {
         "objectif": "Réduire l’abandon à froid dès la première visite",
@@ -85,7 +91,7 @@ reco_map = {
     }
 }
 
-# --- Recommandations DOM ---
+# --- Recos DOM ---
 dom_reco_map = {
     "nav_menu_link": {
         "objectif": "Faciliter l'accès rapide aux contenus",
@@ -138,7 +144,7 @@ dom_reco_map = {
     }
 }
 
-# --- 🎯 Filtres indépendants avec "Toutes les dates" ---
+# --- Filtres dans la sidebar ---
 st.sidebar.header("🎯 Filtres utilisateur")
 all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
 selected_date = st.sidebar.selectbox("Date de clic :", ["Toutes"] + all_dates)
@@ -147,22 +153,16 @@ selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(df['vi
 selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(df['user_name'].dropna().unique()))
 selected_risk = st.sidebar.selectbox("Niveau de risque :", ["Tous"] + sorted(df['risk_level'].dropna().unique()))
 
-# --- ℹ️ Légende utilisateurs et interactions ---
+# --- Légende dans la sidebar ---
 with st.sidebar.expander("ℹ️ Légende profils / interactions"):
     st.markdown("""
 **Profils utilisateurs**  
-- 🔥 Utilisateurs actifs  
-- 🟠 Visiteurs occasionnels  
-- 🟣 Engagement moyen  
-- 🔴 Nouveaux utilisateurs  
-- 🟢 Explorateurs passifs
+🔥 Utilisateurs actifs • 🟠 Visiteurs occasionnels  
+🟣 Engagement moyen • 🔴 Nouveaux utilisateurs • 🟢 Explorateurs passifs
 
 **Types d'interactions**  
-- 😴 Volatile  
-- 🧠 Lecteur curieux  
-- ⚡ Engagé silencieux  
-- 💥 Interactif actif  
-- 📌 Standard
+😴 Volatile • 🧠 Lecteur curieux • ⚡ Engagé silencieux  
+💥 Interactif actif • 📌 Standard
 """)
 
 # --- Application des filtres ---
@@ -183,17 +183,22 @@ if selected_date == "Toutes":
     st.markdown("### 👥 Résultats : toutes les dates")
 else:
     st.markdown(f"### 👥 Résultats pour le {selected_date}")
-
 st.write(f"Nombre d’utilisateurs : {len(filtered_df)}")
 
 if not filtered_df.empty:
-    st.dataframe(filtered_df[['visitor_id', 'user_name', 'profil', 'interaction_type', 'risk_level', 'engagement_score']])
+    st.dataframe(filtered_df[[
+        'yyyymmdd_click', 'visitor_id', 'user_name',
+        'profil', 'interaction_type', 'risk_level', 'engagement_score'
+    ]])
 else:
     st.warning("Aucun utilisateur trouvé avec les filtres appliqués.")
 
-# --- 📌 Recommandations pour chaque utilisateur filtré ---
-st.markdown("## ✅ Recommandations par utilisateur")
-for idx, user in filtered_df.iterrows():
+# --- ✅ Recommandations sans doublons ---
+st.markdown("## ✅ Recommandations par utilisateur (sans doublons)")
+
+unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'interaction_type', 'profil'])
+
+for idx, user in unique_users.iterrows():
     if user['interaction_type'] in reco_map:
         with st.expander(f"👤 {user['user_name']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})", expanded=False):
             reco = reco_map[user['interaction_type']]
