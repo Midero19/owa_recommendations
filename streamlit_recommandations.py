@@ -70,7 +70,7 @@ all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
 selected_date = st.sidebar.selectbox("Date de clic :", ["Toutes"] + list(all_dates))
 selected_session = st.sidebar.selectbox("Session ID :", ["Tous"] + sorted(df['session_id'].dropna().unique()))
 selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(df['visitor_id'].dropna().unique()))
-selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(df['user_name_click'].dropna().unique()))
+selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(df['user_name'].dropna().unique()))
 selected_risk = st.sidebar.selectbox("Niveau de risque :", ["Tous"] + sorted(df['risk_level'].dropna().unique()))
 
 filtered_df = df.copy()
@@ -81,7 +81,7 @@ if selected_session != "Tous":
 if selected_visitor != "Tous":
     filtered_df = filtered_df[filtered_df['visitor_id'] == selected_visitor]
 if selected_user != "Tous":
-    filtered_df = filtered_df[filtered_df['user_name_click'] == selected_user]
+    filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
@@ -134,7 +134,7 @@ st.write(f"Nombre d’utilisateurs : {len(filtered_df)}")
 
 if not filtered_df.empty:
     st.dataframe(filtered_df[[
-        'yyyymmdd_click', 'visitor_id', 'user_name_click',
+        'yyyymmdd_click', 'visitor_id', 'user_name',
         'profil', 'interaction_type', 'risk_level', 'engagement_score'
     ]])
 
@@ -144,7 +144,7 @@ if not filtered_df.empty:
     for _, user in unique_users.iterrows():
         if user['interaction_type'] in reco_map:
             reco = reco_map[user['interaction_type']]
-            with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
+            with st.expander(f"👤 {user['user_name']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
                 st.markdown("### 🎯 Comportement général")
                 st.markdown(f"**Objectif :** {reco['objectif']}")
                 st.markdown(f"**Action :** {reco['action']}")
