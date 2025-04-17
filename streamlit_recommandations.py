@@ -187,10 +187,11 @@ if not filtered_df.empty:
     dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'] \
         .agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 
-    for _, user in filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil']).iterrows():
-        reco = reco_map.get(user['interaction_type'])
+    # Use enumerate to generate unique keys
+    for idx, user in enumerate(filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil']).itertuples()):
+        reco = reco_map.get(user.interaction_type)
         if reco:
-            with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
+            with st.expander(f"👤 {user.user_name_click} – {user.interaction_type} (profil : {user.profil}, risque : {user.risk_level})"):
                 st.markdown("### 🎯 Comportement général")
                 st.markdown(f"**Objectif :** {reco['objectif']}")
                 st.markdown(f"**Action :** {reco['action']}")
@@ -198,8 +199,9 @@ if not filtered_df.empty:
                 st.markdown(f"**Canal :** {reco['canal']}")
                 st.markdown(f"**CTA :** {reco['cta']}")
 
-                if st.checkbox("🔍 Voir la recommandation DOM", key=f"dom_{user['visitor_id']}"):
-                    top_dom = dom_by_visitor.get(user['visitor_id'])
+                key = f"dom_{user.visitor_id}_{idx}"
+                if st.checkbox("🔍 Voir la recommandation DOM", key=key):
+                    top_dom = dom_by_visitor.get(user.visitor_id)
                     dom = dom_reco_map.get(top_dom)
                     if dom:
                         st.markdown("### 🔍 Élément DOM principal")
