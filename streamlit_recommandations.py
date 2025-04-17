@@ -93,15 +93,18 @@ with st.expander("ℹ️ Légende profils / interactions"):
 🟣 Engagement moyen • 🔴 Nouveaux utilisateurs • 🟢 Explorateurs passifs
 
 **Types d'interactions**  
-😴 Volatile • 🧠 Lecteur curieux • ⚡ Engagé silencieux  
-💥 Utilisateur très actif • 📌 Standard
+😴 Volatile : visite très courte ou abandonnée  
+🧠 Lecteur curieux : consulte beaucoup de pages sans agir  
+⚡ Engagé silencieux : reste longtemps sans interagir  
+💥 Utilisateur très actif : agit beaucoup ou commente  
+📌 Standard : comportement moyen sans traits distinctifs
 """)
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.markdown("#### Profils")
     profil_counts = filtered_df['profil'].value_counts()
-    fig1, ax1 = plt.subplots(figsize=(5, 5))
+    fig1, ax1 = plt.subplots(figsize=(6, 6))
     if not profil_counts.empty:
         ax1.pie(profil_counts, labels=profil_counts.index, autopct='%1.1f%%', startangle=90)
         ax1.axis('equal')
@@ -112,7 +115,7 @@ with col1:
 with col2:
     st.markdown("#### Interactions")
     interaction_counts = filtered_df['interaction_type'].value_counts()
-    fig2, ax2 = plt.subplots(figsize=(5, 5))
+    fig2, ax2 = plt.subplots(figsize=(6, 6))
     if not interaction_counts.empty:
         ax2.bar(interaction_counts.index, interaction_counts.values)
         ax2.set_ylabel("Utilisateurs")
