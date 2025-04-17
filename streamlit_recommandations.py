@@ -3,15 +3,17 @@ import pandas as pd
 import os
 import gdown
 
-# --- Télécharger le fichier CSV depuis Google Drive ---
+# --- Téléchargement automatique du CSV ---
 file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
 output_path = "final_owa.csv"
 
 if not os.path.exists(output_path):
     gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
-# --- Chargement et préparation des données ---
+# --- Chargement des données ---
 df = pd.read_csv(output_path, sep=";", encoding="utf-8", on_bad_lines="skip", engine="python")
+
+# --- Nettoyage & préparation ---
 df['visitor_id'] = df['visitor_id'].astype(str)
 df['session_id'] = df['session_id'].astype(str)
 df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
@@ -26,7 +28,7 @@ cluster_labels = {
 }
 df["profil"] = df["cluster"].map(cluster_labels)
 
-# --- Classification comportementale ---
+# --- Détection du type d'interaction ---
 def classify_interaction(row):
     if row['is_bounce'] == 1 or row['bounce_rate'] > 80:
         return "💤 Volatile"
@@ -41,7 +43,7 @@ def classify_interaction(row):
 
 df['interaction_type'] = df.apply(classify_interaction, axis=1)
 
-# --- Recommandations comportementales ---
+# --- Recommandations générales ---
 reco_map = {
     "💤 Volatile": {
         "objectif": "Réduire l’abandon à froid dès la première visite",
@@ -157,8 +159,8 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
-# --- Résultats ---
-st.markdown(f"### 👥 {len(filtered_df)} utilisateur(s) trouvé(s) pour {selected_date}")
+# --- Affichage des résultats ---
+st.markdown(f"### 👥 {len(filtered_df)} utilisateur(s) trouvé(s) pour le {selected_date}")
 if filtered_df.empty:
     st.warning("Aucun utilisateur ne correspond aux filtres sélectionnés.")
 else:
@@ -168,6 +170,7 @@ else:
 if len(filtered_df) == 1:
     user = filtered_df.iloc[0]
     st.markdown("## ✅ Recommandation personnalisée")
+
     if user['risk_level'] == 1:
         reco = reco_map.get(user['interaction_type'], {})
         st.markdown("### 🎯 Comportement général")
