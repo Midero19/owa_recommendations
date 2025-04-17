@@ -4,17 +4,17 @@ import os
 import gdown
 import matplotlib.pyplot as plt
 
-# Évite les problèmes sur Streamlit Cloud
+# Eviter les erreurs sur Streamlit Cloud
 os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
 
-# --- Télécharger le fichier si besoin ---
+# --- TELECHARGEMENT DU FICHIER ---
 file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"
 output_path = "final_owa.csv"
 
 if not os.path.exists(output_path):
     gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
-# --- Chargement ---
+# --- CHARGEMENT DU FICHIER ---
 df = pd.read_csv(
     output_path,
     sep=";",
@@ -24,11 +24,11 @@ df = pd.read_csv(
     dtype={"visitor_id": str}
 )
 
-# --- Nettoyage ---
+# --- PRETRAITEMENT ---
 df['session_id'] = df['session_id'].astype(str)
 df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
 
-# --- Mapping des clusters ---
+# --- MAPPING DES CLUSTERS ---
 cluster_labels = {
     0: "Utilisateurs actifs",
     1: "Visiteurs occasionnels",
@@ -38,7 +38,7 @@ cluster_labels = {
 }
 df["profil"] = df["cluster"].map(cluster_labels)
 
-# --- Typologie comportementale ---
+# --- TYPOLOGIE COMPORTEMENTALE ---
 def classify_interaction(row):
     if row['is_bounce'] == 1 or row['bounce_rate'] > 80:
         return "💤 Volatile"
@@ -53,8 +53,8 @@ def classify_interaction(row):
 
 df['interaction_type'] = df.apply(classify_interaction, axis=1)
 
-# --- Filtres dans la sidebar ---
-st.sidebar.header("🎯 Filtres utilisateur")
+# --- BARRE LATERALE (FILTRES) ---
+st.sidebar.header("🌟 Filtres utilisateur")
 all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
 selected_date = st.sidebar.selectbox("Date de clic :", ["Toutes"] + list(all_dates))
 selected_session = st.sidebar.selectbox("Session ID :", ["Tous"] + sorted(df['session_id'].dropna().unique()))
@@ -66,14 +66,14 @@ with st.sidebar.expander("ℹ️ Légende profils / interactions"):
     st.markdown("""
 **Profils utilisateurs**  
 🔥 Utilisateurs actifs • 🟠 Visiteurs occasionnels  
-🟣 Engagement moyen • 🔴 Nouveaux utilisateurs • 🟢 Explorateurs passifs
+🔸 Engagement moyen • 🔴 Nouveaux utilisateurs • 🔵 Explorateurs passifs
 
 **Types d'interactions**  
-😴 Volatile • 🧠 Lecteur curieux • ⚡ Engagé silencieux  
+😪 Volatile • 🧠 Lecteur curieux • ⚡ Engagé silencieux  
 💥 Interactif actif • 📌 Standard
 """)
 
-# --- Application des filtres ---
+# --- APPLICATION DES FILTRES ---
 filtered_df = df.copy()
 if selected_date != "Toutes":
     filtered_df = filtered_df[filtered_df['yyyymmdd_click'].dt.date == selected_date]
@@ -86,40 +86,51 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
-# --- 📊 GRAPHIQUES ---
-st.markdown("## 📊 Statistiques globales")
-
-col1, col2 = st.columns(2)
+# --- GRAPHIQUES DYNAMIQUES ---
+st.markdown("## 📊 Statistiques filtrées")
+col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.markdown("### Répartition des profils")
-    profil_counts = df['profil'].value_counts()
-    fig1, ax1 = plt.subplots()
-    ax1.pie(profil_counts, labels=profil_counts.index, autopct='%1.1f%%', startangle=90)
-    ax1.axis('equal')
-    st.pyplot(fig1)
+    st.markdown("### Profils")
+    profil_counts = filtered_df['profil'].value_counts()
+    fig1, ax1 = plt.subplots(figsize=(4, 4))
+    if not profil_counts.empty:
+        ax1.pie(profil_counts, labels=profil_counts.index, autopct='%1.1f%%', startangle=90)
+        ax1.axis('equal')
+        st.pyplot(fig1)
+    else:
+        st.info("Aucun profil à afficher.")
 
 with col2:
-    st.markdown("### Durée moyenne des sessions par profil")
-    avg_duration = df.groupby('profil')['avg_session_duration'].mean().sort_values()
-    fig2, ax2 = plt.subplots()
-    ax2.barh(avg_duration.index, avg_duration.values)
-    ax2.set_xlabel("Durée moyenne (secondes)")
-    st.pyplot(fig2)
+    st.markdown("### Durée moyenne (s)")
+    avg_duration = filtered_df.groupby('profil')['avg_session_duration'].mean().sort_values()
+    fig2, ax2 = plt.subplots(figsize=(4, 4))
+    if not avg_duration.empty:
+        ax2.barh(avg_duration.index, avg_duration.values)
+        ax2.set_xlabel("Secondes")
+        st.pyplot(fig2)
+    else:
+        st.info("Pas de durée moyenne dispo.")
 
-st.markdown("### Répartition des types d’interactions")
-interaction_counts = df['interaction_type'].value_counts()
-fig3, ax3 = plt.subplots()
-ax3.bar(interaction_counts.index, interaction_counts.values)
-ax3.set_ylabel("Nombre d'utilisateurs")
-plt.xticks(rotation=45)
-st.pyplot(fig3)
+with col3:
+    st.markdown("### Interactions")
+    interaction_counts = filtered_df['interaction_type'].value_counts()
+    fig3, ax3 = plt.subplots(figsize=(4, 4))
+    if not interaction_counts.empty:
+        ax3.bar(interaction_counts.index, interaction_counts.values)
+        ax3.set_ylabel("Utilisateurs")
+        ax3.tick_params(axis='x', rotation=45)
+        st.pyplot(fig3)
+    else:
+        st.info("Aucune interaction à afficher.")
 
-# --- Résumé des résultats ---
+# --- TABLEAU RESULTATS ---
+st.markdown("## 📅 Résultats utilisateurs")
 if selected_date == "Toutes":
-    st.markdown("### 👥 Résultats : toutes les dates")
+    st.markdown("### 👥 Toutes les dates")
 else:
     st.markdown(f"### 👥 Résultats pour le {selected_date}")
+
 st.write(f"Nombre d’utilisateurs : {len(filtered_df)}")
 
 if not filtered_df.empty:
@@ -129,79 +140,3 @@ if not filtered_df.empty:
     ]])
 else:
     st.warning("Aucun utilisateur trouvé avec les filtres appliqués.")
-
-# --- ✅ Recommandations comportementales ---
-reco_map = {
-    "💤 Volatile": {
-        "objectif": "Réduire l’abandon à froid dès la première visite",
-        "action": "Relancer par un email ou push dans l’heure avec un contenu percutant",
-        "ton": "Intrigant, FOMO",
-        "canal": "Push / Email",
-        "cta": "⏱️ Découvrez ce que vous avez manqué en 60 secondes !"
-    },
-    "🧠 Lecteur curieux": {
-        "objectif": "Transformer sa curiosité en interaction",
-        "action": "Afficher un quiz, emoji ou bouton 'suivre ce thème'",
-        "ton": "Complice, engageant",
-        "canal": "Popup + email",
-        "cta": "📚 Activez les suggestions selon vos lectures"
-    },
-    "⚡ Engagé silencieux": {
-        "objectif": "Lever les freins invisibles à l’action",
-        "action": "Ajouter un bouton de réaction ou une question douce",
-        "ton": "Encourageant, chaleureux",
-        "canal": "Interface + email",
-        "cta": "👍 Vous avez aimé ce contenu ? Faites-le savoir en un clic"
-    },
-    "💥 Interactif actif": {
-        "objectif": "Prévenir la frustration d’un utilisateur très impliqué",
-        "action": "Offrir un contenu VIP ou une invitation à contribuer",
-        "ton": "Valorisant, exclusif",
-        "canal": "Email personnalisé + interface",
-        "cta": "🏅 Merci pour votre activité ! Voici un avant-goût en exclusivité"
-    },
-    "📌 Standard": {
-        "objectif": "Créer un déclic d’intérêt",
-        "action": "Envoyer une sélection des contenus populaires",
-        "ton": "Positif, informatif",
-        "canal": "Email hebdomadaire",
-        "cta": "📬 Voici les contenus qui font vibrer notre communauté"
-    }
-}
-
-dom_reco_map = {
-    "nav_menu_link": {"objectif": "Faciliter l'accès rapide aux contenus", "action": "Adapter la navigation aux rubriques préférées", "ton": "Clair, organisé", "canal": "Interface + email", "cta": "🔎 Naviguez plus vite dans vos contenus favoris"},
-    "read_more_btn": {"objectif": "Proposer du contenu approfondi", "action": "Recommander des articles longs ou des séries", "ton": "Éditorial, expert", "canal": "Email dossier", "cta": "📘 Découvrez notre série spéciale"},
-    "search_bar": {"objectif": "Anticiper ses recherches", "action": "Créer des suggestions ou alertes", "ton": "Pratique, rapide", "canal": "Interface + notification", "cta": "🔔 Activez les alertes sur vos sujets préférés"},
-    "video_player": {"objectif": "Fidéliser via les vidéos", "action": "Playlist ou suggestions vidéos", "ton": "Visuel, immersif", "canal": "Interface vidéo", "cta": "🎬 Votre sélection vidéo vous attend"},
-    "comment_field": {"objectif": "Encourager l’expression", "action": "Mettre en avant les débats en cours", "ton": "Communautaire", "canal": "Email + interface", "cta": "💬 Rejoignez la discussion du moment"},
-    "cta_banner_top": {"objectif": "Transformer l’intérêt en fidélité", "action": "Offre ou teaser exclusif", "ton": "Promo, VIP", "canal": "Email", "cta": "🎁 Votre avant-première vous attend"},
-    "footer_link_about": {"objectif": "Comprendre son besoin discret", "action": "Sondage simple ou assistant guidé", "ton": "Curieux, bienveillant", "canal": "Popup", "cta": "🤔 On vous aide à trouver ce que vous cherchez ?"}
-}
-
-st.markdown("## ✅ Recommandations par utilisateur (sans doublons)")
-unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'interaction_type', 'profil'])
-
-for idx, user in unique_users.iterrows():
-    if user['interaction_type'] in reco_map:
-        with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})", expanded=False):
-            reco = reco_map[user['interaction_type']]
-            st.markdown("### 🎯 Comportement général")
-            st.markdown(f"**Objectif :** {reco['objectif']}")
-            st.markdown(f"**Action :** {reco['action']}")
-            st.markdown(f"**Ton :** {reco['ton']}")
-            st.markdown(f"**Canal :** {reco['canal']}")
-            st.markdown(f"**CTA :** {reco['cta']}")
-
-            dom_clicks = df[df['visitor_id'] == user['visitor_id']]['dom_element_id'].dropna()
-            if not dom_clicks.empty:
-                top_dom = dom_clicks.mode().iloc[0]
-                if top_dom in dom_reco_map:
-                    dom = dom_reco_map[top_dom]
-                    st.markdown("### 🔍 Élément DOM principal")
-                    st.markdown(f"**Élément :** `{top_dom}`")
-                    st.markdown(f"**Objectif :** {dom['objectif']}")
-                    st.markdown(f"**Action :** {dom['action']}")
-                    st.markdown(f"**Ton :** {dom['ton']}")
-                    st.markdown(f"**Canal :** {dom['canal']}")
-                    st.markdown(f"**CTA :** {dom['cta']}")
