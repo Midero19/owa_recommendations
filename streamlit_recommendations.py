@@ -1,8 +1,17 @@
 import streamlit as st
 import pandas as pd
+import os
+import gdown
+
+# --- Télécharger le CSV depuis Google Drive si nécessaire ---
+file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
+output_path = "final_owa.csv"
+
+if not os.path.exists(output_path):
+    gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
 # --- Chargement des données ---
-df = pd.read_csv("final_owa.csv", sep=";", encoding="utf-8", on_bad_lines="skip", engine="python")
+df = pd.read_csv(output_path, sep=";", encoding="utf-8", on_bad_lines="skip", engine="python")
 
 # --- Mapping des clusters ---
 cluster_labels = {
@@ -14,7 +23,7 @@ cluster_labels = {
 }
 df["profil"] = df["cluster"].map(cluster_labels)
 
-# --- Détection type d'interaction ---
+# --- Typologie comportementale ---
 def classify_interaction(row):
     if row['is_bounce'] == 1 or row['bounce_rate'] > 80:
         return "💤 Volatile"
@@ -68,7 +77,7 @@ reco_map = {
     }
 }
 
-# --- Recommandations DOM ---
+# --- Recommandations DOM spécifiques ---
 dom_reco_map = {
     "nav_menu_link": {
         "objectif": "Faciliter l'accès rapide aux contenus",
@@ -121,7 +130,7 @@ dom_reco_map = {
     }
 }
 
-# --- Filtres UI ---
+# --- Filtres utilisateurs ---
 st.sidebar.header("🎯 Filtres")
 selected_profil = st.sidebar.multiselect("Profil utilisateur", df['profil'].dropna().unique())
 selected_interaction = st.sidebar.multiselect("Type d'interaction", df['interaction_type'].unique())
@@ -129,7 +138,7 @@ selected_risk = st.sidebar.selectbox("Niveau de risque", [1, 2, 3])
 selected_user = st.sidebar.selectbox("Nom utilisateur", ["Tous"] + sorted(df['user_name'].dropna().unique()))
 score_min, score_max = st.sidebar.slider("Score d'engagement", float(df['engagement_score'].min()), float(df['engagement_score'].max()), (float(df['engagement_score'].min()), float(df['engagement_score'].max())))
 
-# --- Filtrage des données ---
+# --- Filtrage dynamique ---
 filtered_df = df.copy()
 if selected_profil:
     filtered_df = filtered_df[filtered_df['profil'].isin(selected_profil)]
@@ -141,31 +150,30 @@ if selected_user != "Tous":
     filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
 filtered_df = filtered_df[(filtered_df['engagement_score'] >= score_min) & (filtered_df['engagement_score'] <= score_max)]
 
-# --- Résultats utilisateurs filtrés ---
-st.markdown("## 👥 Résultats")
+# --- Affichage des résultats ---
+st.markdown("## 👥 Résultats filtrés")
 st.dataframe(filtered_df[['visitor_id', 'user_name', 'profil', 'interaction_type', 'risk_level', 'engagement_score']])
 
-# --- Recommandation personnalisée ---
+# --- Recommandation individuelle ---
 if len(filtered_df) == 1:
     user = filtered_df.iloc[0]
     st.markdown("## ✅ Recommandation personnalisée")
     if user['risk_level'] == 1:
         reco = reco_map.get(user['interaction_type'], {})
-        st.markdown("### 🎯 Basée sur son comportement global")
+        st.markdown("### 🎯 Basée sur le comportement global")
         st.markdown(f"**Objectif :** {reco.get('objectif')}")
         st.markdown(f"**Action :** {reco.get('action')}")
         st.markdown(f"**Ton :** {reco.get('ton')}")
         st.markdown(f"**Canal :** {reco.get('canal')}")
         st.markdown(f"**CTA :** {reco.get('cta')}")
 
-        # --- DOM element le plus fréquent pour ce user ---
         dom_clicks = df[df['visitor_id'] == user['visitor_id']]['dom_element_id'].dropna()
         if not dom_clicks.empty:
             top_dom = dom_clicks.mode().iloc[0]
             if top_dom in dom_reco_map:
                 dom_reco = dom_reco_map[top_dom]
                 st.markdown("---")
-                st.markdown("### 🔍 Recommandation basée sur clic spécifique")
+                st.markdown("### 🔍 Basée sur le comportement spécifique (DOM)")
                 st.markdown(f"**Élément cliqué :** `{top_dom}`")
                 st.markdown(f"**Objectif :** {dom_reco.get('objectif')}")
                 st.markdown(f"**Action :** {dom_reco.get('action')}")
@@ -173,6 +181,6 @@ if len(filtered_df) == 1:
                 st.markdown(f"**Canal :** {dom_reco.get('canal')}")
                 st.markdown(f"**CTA :** {dom_reco.get('cta')}")
     else:
-        st.info("ℹ️ Cet utilisateur n’est pas considéré comme à risque élevé.")
+        st.info("ℹ️ Cet utilisateur n’est pas à risque élevé.")
 else:
-    st.info("🔍 Sélectionnez un seul utilisateur pour voir les recommandations complètes.")
+    st.info("🔍 Sélectionnez un seul utilisateur pour voir des recommandations détaillées.")
