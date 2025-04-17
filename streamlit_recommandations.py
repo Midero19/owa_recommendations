@@ -1,4 +1,6 @@
 import streamlit as st
+
+st.title("🧠 Moteur de recommandations utilisateurs")
 import pandas as pd
 import os
 import gdown
@@ -106,6 +108,10 @@ if not filtered_df.empty:
 
     st.dataframe(grouped_df)
 
+    st.markdown("## 📊 Répartition des profils utilisateurs")
+    profil_counts = grouped_df['profil'].value_counts()
+    st.bar_chart(profil_counts)
+
     st.markdown("## ✅ Recommandations personnalisées")
     show_all = True
 
@@ -125,7 +131,8 @@ if not filtered_df.empty:
                 st.markdown(f"**Canal :** {reco['canal']}")
                 st.markdown(f"**CTA :** {reco['cta']}")
 
-                if st.checkbox(f"🔍 Voir la recommandation DOM", key=f"{user['visitor_id']}"):
+                checkbox_key = f"{user['visitor_id']}_{user['user_name_click']}"
+                if st.checkbox("🔍 Voir la recommandation DOM", key=checkbox_key):
                     top_dom = dom_by_visitor.get(user['visitor_id'])
                     if pd.notna(top_dom) and top_dom in dom_reco_map:
                         dom = dom_reco_map[top_dom]
