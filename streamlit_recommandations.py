@@ -215,7 +215,8 @@ if not filtered_df.empty:
                 st.markdown(f"**Canal :** {reco['canal']}")
                 st.markdown(f"**CTA :** {reco['cta']}")
 
-                checkbox_key = f"{user['visitor_id']}_{user['user_name_click']}"
+                safe_name = re.sub(r'\W+', '_', str(user['user_name_click']))
+                checkbox_key = f"{user['visitor_id']}_{safe_name}_{_}"
                 if st.checkbox("🔍 Voir la recommandation DOM", key=checkbox_key):
                     top_dom = dom_by_visitor.get(user['visitor_id'])
                     if pd.notna(top_dom) and top_dom in dom_reco_map:
