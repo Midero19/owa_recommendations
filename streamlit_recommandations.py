@@ -1,4 +1,9 @@
 import streamlit as st
+import pandas as pd
+import os
+import gdown
+import matplotlib.pyplot as plt
+import altair as alt
 
 st.markdown("""
 <div style='text-align: center; padding: 1rem 0;'>
@@ -6,10 +11,6 @@ st.markdown("""
     <p style='color: grey;'>Analyse comportementale et suggestions personnalisées en un clic</p>
 </div>
 """, unsafe_allow_html=True)
-import pandas as pd
-import os
-import gdown
-
 
 file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"
 output_path = "final_owa.csv"
@@ -90,8 +91,6 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
-
-
 st.markdown("""
 <div style='text-align: center;'>
     <h2 style='color: #F4B400;'>📋 Résultats utilisateurs</h2>
@@ -105,7 +104,6 @@ else:
 st.markdown(f"<div style='text-align: center; font-size: 1.2rem;'>📊 <strong>Nombre de clics</strong> : {len(filtered_df)}</div>", unsafe_allow_html=True)
 st.markdown(f"<div style='text-align: center; font-size: 1.2rem;'>🧍‍♂️ <strong>Utilisateurs uniques</strong> : {filtered_df['visitor_id'].nunique()}</div>", unsafe_allow_html=True)
 
-
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
         'yyyymmdd_click': 'min',
@@ -116,12 +114,19 @@ if not filtered_df.empty:
     }).reset_index()
 
     st.markdown("""
-<div style='text-align: center; margin-top: 2rem;'>
-    <h2 style='color: #1E88E5;'>📊 Répartition des profils utilisateurs</h2>
-</div>
-""", unsafe_allow_html=True)
+    <div style='text-align: center; margin-top: 2rem;'>
+        <h2 style='color: #1E88E5;'>📊 Répartition des profils utilisateurs</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
     profil_counts = grouped_df['profil'].value_counts()
-    st.bar_chart(profil_counts, use_container_width=True)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    profil_counts.plot(kind='bar', ax=ax)
+    ax.set_ylabel("Nombre d'utilisateurs")
+    ax.set_xlabel("Profil utilisateur")
+    ax.set_title("Répartition des profils")
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
 
     st.dataframe(grouped_df.style.set_properties(**{
         'background-color': '#111111',
@@ -133,23 +138,12 @@ if not filtered_df.empty:
     ]))
 
     st.markdown("""
-<div style='text-align: center; margin-top: 2rem;'>
-    <h2 style='color: #1E88E5;'>📊 Répartition des profils utilisateurs</h2>
-</div>
-""", unsafe_allow_html=True)
-    profil_counts = grouped_df['profil'].value_counts()
-    st.bar_chart(profil_counts)
-
-    import altair as alt
-
-    st.markdown("""
     <div style='text-align: center; margin-top: 3rem;'>
         <h2 style='color: #1E88E5;'>📈 Évolution du score d'engagement</h2>
     </div>
     """, unsafe_allow_html=True)
 
-    engagement_over_time = filtered_df.copy()
-    engagement_over_time = engagement_over_time[['yyyymmdd_click', 'engagement_score', 'visitor_id', 'user_name_click']].dropna()
+    engagement_over_time = filtered_df[['yyyymmdd_click', 'engagement_score', 'visitor_id', 'user_name_click']].dropna()
 
     if selected_visitor != "Tous":
         title = f"Score d'engagement pour {selected_visitor}"
@@ -170,18 +164,15 @@ if not filtered_df.empty:
     st.altair_chart(line_chart, use_container_width=True)
 
     st.markdown("""
-<div style='text-align: center; margin-top: 3rem;'>
-    <h2 style='color: #43A047;'>✅ Recommandations personnalisées</h2>
-</div>
-""", unsafe_allow_html=True)
-    show_all = True
+    <div style='text-align: center; margin-top: 3rem;'>
+        <h2 style='color: #43A047;'>✅ Recommandations personnalisées</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
     unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
     dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 
-    display_users = unique_users
-
-    for _, user in display_users.iterrows():
+    for _, user in unique_users.iterrows():
         if user['interaction_type'] in reco_map:
             reco = reco_map[user['interaction_type']]
             with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
