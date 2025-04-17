@@ -115,31 +115,26 @@ if not filtered_df.empty:
         'engagement_score': 'mean'
     }).reset_index()
 
+    # 📊 Répartition des profils utilisateurs
     st.markdown("""
-<div style='text-align: center; margin-top: 2rem;'>
-    <h2 style='color: #1E88E5;'>📊 Répartition des profils utilisateurs</h2>
-</div>
-""", unsafe_allow_html=True)
+    <div style='text-align: center; margin-top: 2rem;'>
+        <h2 style='color: #1E88E5;'>📊 Répartition des profils utilisateurs</h2>
+    </div>
+    """, unsafe_allow_html=True)
     profil_counts = grouped_df['profil'].value_counts()
     st.bar_chart(profil_counts, use_container_width=True)
 
+    # 🧾 Affichage des utilisateurs groupés
     st.dataframe(grouped_df.style.set_properties(**{
         'background-color': '#111111',
         'color': 'white',
         'border-color': 'gray'
     }).set_table_styles([
-        {'selector': 'th', 'props': [('font-size', '14px'), ('background-color', '#222'), ('color', 'white')]},
+        {'selector': 'th', 'props': [('font-size', '14px'), ('background-color': '#222'), ('color': 'white')]},
         {'selector': 'td', 'props': [('font-size', '13px')]},
     ]))
 
-    st.markdown("""
-<div style='text-align: center; margin-top: 2rem;'>
-    <h2 style='color: #1E88E5;'>📊 Répartition des profils utilisateurs</h2>
-</div>
-""", unsafe_allow_html=True)
-    profil_counts = grouped_df['profil'].value_counts()
-    st.bar_chart(profil_counts)
-
+    # 📈 Évolution du score d'engagement juste après
     import altair as alt
 
     st.markdown("""
@@ -158,30 +153,30 @@ if not filtered_df.empty:
         title = "Score d'engagement global (moyenne quotidienne)"
         chart_data = engagement_over_time.groupby('yyyymmdd_click').agg({'engagement_score': 'mean'}).reset_index()
 
-    line_chart = alt.Chart(chart_data).mark_line(point=True).encode(
-        x='yyyymmdd_click:T',
-        y='engagement_score:Q'
-    ).properties(
-        width=700,
-        height=400,
-        title=title
-    )
+    if not chart_data.empty:
+        line_chart = alt.Chart(chart_data).mark_line(point=True).encode(
+            x='yyyymmdd_click:T',
+            y='engagement_score:Q'
+        ).properties(
+            width=700,
+            height=400,
+            title=title
+        )
+        st.altair_chart(line_chart, use_container_width=True)
+    else:
+        st.info("Aucune donnée d'engagement disponible pour le graphique.")
 
-    st.altair_chart(line_chart, use_container_width=True)
-
+    # ✅ Recommandations personnalisées
     st.markdown("""
-<div style='text-align: center; margin-top: 3rem;'>
-    <h2 style='color: #43A047;'>✅ Recommandations personnalisées</h2>
-</div>
-""", unsafe_allow_html=True)
-    show_all = True
+    <div style='text-align: center; margin-top: 3rem;'>
+        <h2 style='color: #43A047;'>✅ Recommandations personnalisées</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
     unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
     dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 
-    display_users = unique_users
-
-    for _, user in display_users.iterrows():
+    for _, user in unique_users.iterrows():
         if user['interaction_type'] in reco_map:
             reco = reco_map[user['interaction_type']]
             with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
