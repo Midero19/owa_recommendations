@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import os
 import gdown
-import matplotlib.pyplot as plt
 
 
 file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"
@@ -83,10 +82,6 @@ if selected_user != "Tous":
     filtered_df = filtered_df[filtered_df['user_name_click'] == selected_user]
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
-
-
-    else:
-        st.info("Aucune interaction à afficher.")
 
 
 
