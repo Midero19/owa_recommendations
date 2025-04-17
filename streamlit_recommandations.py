@@ -65,6 +65,7 @@ dom_reco_map = {
     "footer_link_about": {"objectif": "Comprendre son besoin discret", "action": "Sondage simple ou assistant guidé", "ton": "Curieux, bienveillant", "canal": "Popup", "cta": "🤔 On vous aide à trouver ce que vous cherchez ?"}
 }
 
+# Filtres
 st.sidebar.header("🎯 Filtres utilisateur")
 all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
 selected_date = st.sidebar.selectbox("Date de clic :", ["Toutes"] + list(all_dates))
@@ -85,6 +86,7 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
+# Statistiques + graphique engagement
 st.markdown("## 📊 Statistiques filtrées")
 with st.expander("ℹ Légende profils / interactions"):
     st.markdown("""
@@ -99,33 +101,29 @@ with st.expander("ℹ Légende profils / interactions"):
 💥 Utilisateur très actif : agit beaucoup ou commente  
 📌 Standard : comportement moyen sans traits distinctifs
 """)
-col1, col2, col3 = st.columns(3)
 
-with col1:
-    st.markdown("#### Profils")
-    profil_counts = filtered_df['profil'].value_counts()
-    fig1, ax1 = plt.subplots(figsize=(6, 6))
-    if not profil_counts.empty:
-        ax1.pie(profil_counts, labels=profil_counts.index, autopct='%1.1f%%', startangle=90)
-        ax1.axis('equal')
-        st.pyplot(fig1)
-    else:
-        st.info("Aucun profil à afficher.")
+st.markdown("### 📈 Évolution du taux d'engagement moyen")
 
-with col2:
-    st.markdown("#### Interactions")
-    interaction_counts = filtered_df['interaction_type'].value_counts()
-    fig2, ax2 = plt.subplots(figsize=(6, 6))
-    if not interaction_counts.empty:
-        ax2.bar(interaction_counts.index, interaction_counts.values)
-        ax2.set_ylabel("Utilisateurs")
-        ax2.tick_params(axis='x', rotation=45)
-        st.pyplot(fig2)
-    else:
-        st.info("Aucune interaction à afficher.")
+daily_engagement = (
+    filtered_df.dropna(subset=["yyyymmdd_click", "engagement_score"])
+    .groupby(filtered_df['yyyymmdd_click'].dt.date)["engagement_score"]
+    .mean()
+    .reset_index()
+)
 
+if not daily_engagement.empty:
+    fig, ax = plt.subplots(figsize=(10, 4))
+    ax.plot(daily_engagement["yyyymmdd_click"], daily_engagement["engagement_score"], marker='o')
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Score d'engagement moyen")
+    ax.set_title("Évolution du taux d'engagement dans le temps")
+    ax.grid(True)
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
+else:
+    st.info("Pas de données disponibles pour afficher l'évolution.")
 
-
+# Résultats utilisateurs
 st.markdown("## 📋 Résultats utilisateurs")
 if selected_date == "Toutes":
     st.markdown("### 👥 Toutes les dates")
@@ -137,12 +135,12 @@ st.write(f"Nombre d'utilisateurs uniques (visitor_id) : {filtered_df['visitor_id
 
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
-    'yyyymmdd_click': 'min',
-    'profil': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
-    'interaction_type': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
-    'risk_level': 'max',
-    'engagement_score': 'mean'
-}).reset_index()
+        'yyyymmdd_click': 'min',
+        'profil': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        'interaction_type': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        'risk_level': 'max',
+        'engagement_score': 'mean'
+    }).reset_index()
 
     st.dataframe(grouped_df)
 
