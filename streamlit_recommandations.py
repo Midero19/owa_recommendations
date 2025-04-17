@@ -96,6 +96,7 @@ st.markdown("""
     <h2 style='color: #F4B400;'>📋 Résultats utilisateurs</h2>
 </div>
 """, unsafe_allow_html=True)
+
 if selected_date == "Toutes":
     st.markdown("<div style='text-align: center;'><h3>👥 Toutes les dates</h3></div>", unsafe_allow_html=True)
 else:
@@ -124,18 +125,12 @@ if not filtered_df.empty:
     profil_counts.plot(kind='bar', ax=ax)
     ax.set_ylabel("Nombre d'utilisateurs")
     ax.set_xlabel("Profil utilisateur")
-    ax.set_title("Répartition des profils")
+    ax.set_title("Répartition des profils utilisateurs")
     plt.xticks(rotation=45)
+    plt.tight_layout()
     st.pyplot(fig)
 
-    st.dataframe(grouped_df.style.set_properties(**{
-        'background-color': '#111111',
-        'color': 'white',
-        'border-color': 'gray'
-    }).set_table_styles([
-        {'selector': 'th', 'props': [('font-size', '14px'), ('background-color', '#222'), ('color', 'white')]},
-        {'selector': 'td', 'props': [('font-size', '13px')]},
-    ]))
+    st.dataframe(grouped_df)
 
     st.markdown("""
     <div style='text-align: center; margin-top: 3rem;'>
