@@ -40,7 +40,6 @@ df['profil'] = df['cluster'].map(mapping)
 st.sidebar.header("🔍 Filtres utilisateurs")
 selected_profil = st.sidebar.multiselect("Filtrer par profil :", df['profil'].dropna().unique())
 
-# Filtres dépendants
 usernames = df[df['profil'].isin(selected_profil)]['user_name_click'].dropna().unique() if selected_profil else df['user_name_click'].dropna().unique()
 selected_username = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(usernames)) if len(usernames) > 0 else "Tous"
 
@@ -69,33 +68,17 @@ nb_passifs = len(df[df['profil'].isin(["🟠 Visiteurs occasionnels", "🟢 Expl
 pct_actifs = round(nb_actifs / nb_total * 100, 1)
 pct_passifs = round(nb_passifs / nb_total * 100, 1)
 
-st.markdown("""
+st.markdown(f"""
 <div style='display: flex; justify-content: space-around;'>
-  <div><h3>👥 Total utilisateurs</h3><p style='font-size: 24px;'>""" + f"{nb_total:,}" + "</p></div>
-  <div><h3>✅ Actifs</h3><p style='font-size: 24px;'>""" + f"{nb_actifs:,} ({pct_actifs}%)" + "</p></div>
-  <div><h3>⚠️ À risque</h3><p style='font-size: 24px;'>""" + f"{nb_passifs:,} ({pct_passifs}%)" + "</p></div>
+  <div><h3>👥 Total utilisateurs</h3><p style='font-size: 24px;'>{nb_total:,}</p></div>
+  <div><h3>✅ Actifs</h3><p style='font-size: 24px;'>{nb_actifs:,} ({pct_actifs}%)</p></div>
+  <div><h3>⚠️ À risque</h3><p style='font-size: 24px;'>{nb_passifs:,} ({pct_passifs}%)</p></div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- DÉTAIL D'UN UTILISATEUR ---
+# --- DÉTAIL UTILISATEUR OU PROFIL ---
 st.markdown("---")
-st.markdown("## 🔎 Détail d'un utilisateur")
-
-if selected_visitor_id != "Tous":
-    selected_info = df[df['visitor_id'] == int(selected_visitor_id)]
-    if not selected_info.empty:
-        profil = selected_info['profil'].values[0]
-        st.markdown(f"### 👤 Profil détecté : **{profil}**")
-        st.dataframe(selected_info[[
-            'rfm_recency', 'rfm_frequency', 'rfm_intensity',
-            'engagement_score', 'engagement_density',
-            'avg_actions_per_session', 'avg_session_duration',
-            'bounce_rate', 'is_recent_active'
-        ]].T.rename(columns={selected_info.index[0]: "Valeur"}))
-
-# --- RECOMMANDATIONS PAR PROFIL ---
-st.markdown("---")
-st.markdown("## 💬 Recommandations par profil")
+st.markdown("## 🔎 Détail d’un utilisateur ou d’un profil")
 
 reco_map = {
     "🟠 Visiteurs occasionnels": {
@@ -135,14 +118,36 @@ reco_map = {
     }
 }
 
-for profil, group in df.groupby("profil"):
+if selected_visitor_id != "Tous":
+    selected_info = df[df['visitor_id'] == int(selected_visitor_id)]
+    if not selected_info.empty:
+        profil = selected_info['profil'].values[0]
+        st.markdown(f"### 👤 Profil détecté : **{profil}**")
+        st.dataframe(selected_info[[
+            'rfm_recency', 'rfm_frequency', 'rfm_intensity',
+            'engagement_score', 'engagement_density',
+            'avg_actions_per_session', 'avg_session_duration',
+            'bounce_rate', 'is_recent_active'
+        ]].T.rename(columns={selected_info.index[0]: "Valeur"}))
+        reco = reco_map.get(profil, {})
+        st.markdown("#### ✅ Recommandation personnalisée")
+        st.markdown(f"**🎯 Objectif :** {reco.get('objectif','')}")
+        st.markdown(f"**📢 Action :** {reco.get('action','')}")
+        st.markdown(f"**🗣️ Ton :** {reco.get('ton','')}")
+        st.markdown(f"**📡 Canal :** {reco.get('canal','')}")
+        st.markdown(f"**👉 Exemple de message :** {reco.get('cta','')}")
+elif len(selected_profil) == 1:
+    profil = selected_profil[0]
+    st.markdown(f"### 🧠 Recommandation pour le profil : **{profil}**")
     reco = reco_map.get(profil, {})
-    with st.expander(f"{profil} – {len(group)} utilisateurs"):
-        st.markdown(f"**🎯 Objectif :** {reco.get('objectif', '')}")
-        st.markdown(f"**✅ Action recommandée :** {reco.get('action', '')}")
-        st.markdown(f"**🗣️ Ton conseillé :** {reco.get('ton', '')}")
-        st.markdown(f"**📡 Canal :** {reco.get('canal', '')}")
-        st.markdown(f"**👉 Exemple :** {reco.get('cta', '')}")
+    st.markdown("#### ✅ Recommandation générale")
+    st.markdown(f"**🎯 Objectif :** {reco.get('objectif','')}")
+    st.markdown(f"**📢 Action :** {reco.get('action','')}")
+    st.markdown(f"**🗣️ Ton :** {reco.get('ton','')}")
+    st.markdown(f"**📡 Canal :** {reco.get('canal','')}")
+    st.markdown(f"**👉 Exemple de message :** {reco.get('cta','')}")
+else:
+    st.info("Sélectionnez un visitor_id ou un seul profil pour afficher une recommandation ciblée.")
 
 # --- SYNTHÈSE DG ---
 st.markdown("---")
