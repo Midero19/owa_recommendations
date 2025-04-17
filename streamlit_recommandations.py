@@ -64,14 +64,19 @@ dom_reco_map = {...}
 
 # --- Barre latérale : filtres ---
 st.sidebar.header("🎯 Filtres utilisateur")
+# on utilise dropna() pour éviter les NaT dans les dates
 filters = {
-    "Date de clic": ["Toutes"] + sorted(df['yyyymmdd_click'].dt.date.unique()),
-    "Session ID": ["Tous"] + sorted(df['session_id'].unique()),
-    "Visitor ID": ["Tous"] + sorted(df['visitor_id'].unique()),
-    "Nom d'utilisateur": ["Tous"] + sorted(df['user_name_click'].astype(str).unique()),
-    "Niveau de risque": ["Tous"] + sorted(df['risk_level'].astype(str).unique())
+    "Date de clic": ["Toutes"] + sorted(df['yyyymmdd_click'].dt.date.dropna().unique()),
+    "Session ID": ["Tous"] + sorted(df['session_id'].dropna().unique()),
+    "Visitor ID": ["Tous"] + sorted(df['visitor_id'].dropna().unique()),
+    "Nom d'utilisateur": ["Tous"] + sorted(df['user_name_click'].dropna().astype(str).unique()),
+    "Niveau de risque": ["Tous"] + sorted(df['risk_level'].dropna().astype(str).unique())
 }
-selected = {k: st.sidebar.selectbox(f"{k} :", v) for k, v in filters.items()}
+# création des widgets
+selected = {
+    k: st.sidebar.selectbox(f"{k} :", options)
+    for k, options in filters.items()
+}
 
 # --- Application des filtres ---
 fd = df.copy()
