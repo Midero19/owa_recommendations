@@ -134,6 +134,7 @@ else:
 
 st.write(f"Nombre de clics : {len(filtered_df)}")
 st.write(f"Nombre d'utilisateurs uniques (visitor_id) : {filtered_df['visitor_id'].nunique()}")
+st.write(f"Nombre de noms d'utilisateurs uniques : {filtered_df['user_name_click'].nunique()}")
 
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
@@ -150,7 +151,13 @@ if not filtered_df.empty:
     unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
     dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 
-    for _, user in unique_users.iterrows():
+    show_all = st.checkbox("Afficher tout", value=False)
+    max_display = 30
+    if not show_all and len(unique_users) > max_display:
+        st.info(f"⚠️ Affichage limité aux {max_display} premiers utilisateurs pour des raisons de performance.")
+    display_users = unique_users if show_all else unique_users.head(max_display)
+
+    for _, user in display_users.iterrows():
         if user['interaction_type'] in reco_map:
             reco = reco_map[user['interaction_type']]
             with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
