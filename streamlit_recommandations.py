@@ -151,7 +151,7 @@ if not filtered_df.empty:
     unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
     dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 
-    show_all = st.checkbox("Afficher tout", value=False)
+    show_all = st.checkbox("Afficher tous les utilisateurs filtrés", value=False)
     max_display = 30
     if not show_all and len(unique_users) > max_display:
         st.info(f"⚠️ Affichage limité aux {max_display} premiers utilisateurs pour des raisons de performance.")
