@@ -104,7 +104,7 @@ if not filtered_df.empty:
         'engagement_score': 'mean'
     }).reset_index()
 
-    st.table(grouped_df)
+    st.dataframe(grouped_df)
 
     st.markdown("## ✅ Recommandations personnalisées")
     show_all = True
