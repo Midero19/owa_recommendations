@@ -41,7 +41,7 @@ def classify_interaction(row):
     elif row['avg_session_duration'] > 300 and row['num_actions'] < 3:
         return "⚡ Engagé silencieux"
     elif row['num_actions'] > 10 or row['num_comments'] > 3:
-        return "💥 Interactif actif"
+        return "💥 Utilisateur très actif"
     else:
         return "📌 Standard"
 
@@ -51,7 +51,7 @@ reco_map = {
     "💤 Volatile": {"objectif": "Réduire l’abandon à froid dès la première visite", "action": "Relancer par un email ou push dans l’heure avec un contenu percutant", "ton": "Intrigant, FOMO", "canal": "Push / Email", "cta": "⏱️ Découvrez ce que vous avez manqué en 60 secondes !"},
     "🧠 Lecteur curieux": {"objectif": "Transformer sa curiosité en interaction", "action": "Afficher un quiz, emoji ou bouton 'suivre ce thème'", "ton": "Complice, engageant", "canal": "Popup + email", "cta": "📚 Activez les suggestions selon vos lectures"},
     "⚡ Engagé silencieux": {"objectif": "Lever les freins invisibles à l’action", "action": "Ajouter un bouton de réaction ou une question douce", "ton": "Encourageant, chaleureux", "canal": "Interface + email", "cta": "👍 Vous avez aimé ce contenu ? Faites-le savoir en un clic"},
-    "💥 Interactif actif": {"objectif": "Prévenir la frustration d’un utilisateur très impliqué", "action": "Offrir un contenu VIP ou une invitation à contribuer", "ton": "Valorisant, exclusif", "canal": "Email personnalisé + interface", "cta": "🏅 Merci pour votre activité ! Voici un avant-goût en exclusivité"},
+    "💥 Utilisateur très actif": {"objectif": "Prévenir la frustration d’un utilisateur très impliqué", "action": "Offrir un contenu VIP ou une invitation à contribuer", "ton": "Valorisant, exclusif", "canal": "Email personnalisé + interface", "cta": "🏅 Merci pour votre activité ! Voici un avant-goût en exclusivité"},
     "📌 Standard": {"objectif": "Créer un déclic d’intérêt", "action": "Envoyer une sélection des contenus populaires", "ton": "Positif, informatif", "canal": "Email hebdomadaire", "cta": "📬 Voici les contenus qui font vibrer notre communauté"}
 }
 
@@ -86,12 +86,22 @@ if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
 st.markdown("## 📊 Statistiques filtrées")
+with st.expander("ℹ️ Légende profils / interactions"):
+    st.markdown("""
+**Profils utilisateurs**  
+🔥 Utilisateurs actifs • 🟠 Visiteurs occasionnels  
+🟣 Engagement moyen • 🔴 Nouveaux utilisateurs • 🟢 Explorateurs passifs
+
+**Types d'interactions**  
+😴 Volatile • 🧠 Lecteur curieux • ⚡ Engagé silencieux  
+💥 Utilisateur très actif • 📌 Standard
+""")
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.markdown("#### Profils")
     profil_counts = filtered_df['profil'].value_counts()
-    fig1, ax1 = plt.subplots(figsize=(4, 4))
+    fig1, ax1 = plt.subplots(figsize=(5, 5))
     if not profil_counts.empty:
         ax1.pie(profil_counts, labels=profil_counts.index, autopct='%1.1f%%', startangle=90)
         ax1.axis('equal')
@@ -102,7 +112,7 @@ with col1:
 with col2:
     st.markdown("#### Interactions")
     interaction_counts = filtered_df['interaction_type'].value_counts()
-    fig2, ax2 = plt.subplots(figsize=(4, 4))
+    fig2, ax2 = plt.subplots(figsize=(5, 5))
     if not interaction_counts.empty:
         ax2.bar(interaction_counts.index, interaction_counts.values)
         ax2.set_ylabel("Utilisateurs")
