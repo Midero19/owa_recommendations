@@ -22,25 +22,12 @@ output_path = "final_owa.csv"
 
 @st.cache_data(show_spinner=False)
 def load_data(path: str, file_id: str) -> pd.DataFrame:
-    # Téléchargement si nécessaire
     if not os.path.exists(path):
         gdown.download(f"https://drive.google.com/uc?id={file_id}", path, quiet=True)
-    # Lecture du CSV
-    df = pd.read_csv(
-        path,
-        sep=";",
-        encoding="utf-8",
-        on_bad_lines="skip",
-        engine="python",
-        dtype={"visitor_id": str}
-    )
-    # Nettoyage de base
+    df = pd.read_csv(path, sep=";", encoding="utf-8", on_bad_lines="skip", engine="python", dtype={"visitor_id": str})
     df.fillna(0, inplace=True)
     df['session_id'] = df['session_id'].astype(str)
-    df['yyyymmdd_click'] = pd.to_datetime(
-        df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce'
-    )
-    # Mapping de profil
+    df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
     cluster_labels = {
         0: "Utilisateurs actifs",
         1: "Visiteurs occasionnels",
@@ -49,19 +36,13 @@ def load_data(path: str, file_id: str) -> pd.DataFrame:
         6: "Explorateurs passifs"
     }
     df['profil'] = df['cluster'].map(cluster_labels)
-    # Classification vectorisée des interactions
     conds = [
         (df['is_bounce'] == 1) | (df['bounce_rate'] > 80),
         (df['num_pageviews'] > 10) & (df['num_actions'] < 3),
         (df['avg_session_duration'] > 300) & (df['num_actions'] < 3),
         (df['num_actions'] > 10) | (df['num_comments'] > 3),
     ]
-    choices = [
-        "💤 Volatile",
-        "🧠 Lecteur curieux",
-        "⚡ Engagé silencieux",
-        "💥 Utilisateur très actif"
-    ]
+    choices = ["💤 Volatile", "🧠 Lecteur curieux", "⚡ Engagé silencieux", "💥 Utilisateur très actif"]
     df['interaction_type'] = np.select(conds, choices, default="📌 Standard")
     return df
 
@@ -108,68 +89,31 @@ reco_map = {
 }
 
 dom_reco_map = {
-    "nav_menu_link": {
-        "objectif": "Faciliter l'accès rapide aux contenus",
-        "action": "Adapter la navigation aux rubriques préférées",
-        "ton": "Clair, organisé",
-        "canal": "Interface + email",
-        "cta": "🔎 Naviguez plus vite dans vos contenus favoris"
-    },
-    "read_more_btn": {
-        "objectif": "Proposer du contenu approfondi",
-        "action": "Recommander des articles longs ou des séries",
-        "ton": "Éditorial, expert",
-        "canal": "Email dossier",
-        "cta": "📘 Découvrez notre série spéciale"
-    },
-    "search_bar": {
-        "objectif": "Anticiper ses recherches",
-        "action": "Créer des suggestions ou alertes",
-        "ton": "Pratique, rapide",
-        "canal": "Interface + notification",
-        "cta": "🔔 Activez les alertes sur vos sujets préférés"
-    },
-    "video_player": {
-        "objectif": "Fidéliser via les vidéos",
-        "action": "Playlist ou suggestions vidéos",
-        "ton": "Visuel, immersif",
-        "canal": "Interface vidéo",
-        "cta": "🎬 Votre sélection vidéo vous attend"
-    },
-    "comment_field": {
-        "objectif": "Encourager l’expression",
-        "action": "Mettre en avant les débats en cours",
-        "ton": "Communautaire",
-        "canal": "Email + interface",
-        "cta": "💬 Rejoignez la discussion du moment"
-    },
-    "cta_banner_top": {
-        "objectif": "Transformer l’intérêt en fidélité",
-        "action": "Offre ou teaser exclusif",
-        "ton": "Promo, VIP",
-        "canal": "Email",
-        "cta": "🎁 Votre avant-première vous attend"
-    },
-    "footer_link_about": {
-        "objectif": "Comprendre son besoin discret",
-        "action": "Sondage simple ou assistant guidé",
-        "ton": "Curieux, bienveillant",
-        "canal": "Popup",
-        "cta": "🤔 On vous aide à trouver ce que vous cherchez ?"
-    }
+    "nav_menu_link": {"objectif": "Faciliter l'accès rapide aux contenus", "action": "Adapter la navigation aux rubriques préférées", "ton": "Clair, organisé", "canal": "Interface + email", "cta": "🔎 Naviguez plus vite dans vos contenus favoris"},
+    "read_more_btn": {"objectif": "Proposer du contenu approfondi", "action": "Recommander des articles longs ou des séries", "ton": "Éditorial, expert", "canal": "Email dossier", "cta": "📘 Découvrez notre série spéciale"},
+    "search_bar": {"objectif": "Anticiper ses recherches", "action": "Créer des suggestions ou alertes", "ton": "Pratique, rapide", "canal": "Interface + notification", "cta": "🔔 Activez les alertes sur vos sujets préférés"},
+    "video_player": {"objectif": "Fidéliser via les vidéos", "action": "Playlist ou suggestions vidéos", "ton": "Visuel, immersif", "canal": "Interface vidéo", "cta": "🎬 Votre sélection vidéo vous attend"},
+    "comment_field": {"objectif": "Encourager l’expression", "action": "Mettre en avant les débats en cours", "ton": "Communautaire", "canal": "Email + interface", "cta": "💬 Rejoignez la discussion du moment"},
+    "cta_banner_top": {"objectif": "Transformer l’intérêt en fidélité", "action": "Offre ou teaser exclusif", "ton": "Promo, VIP", "canal": "Email", "cta": "🎁 Votre avant-première vous attend"},
+    "footer_link_about": {"objectif": "Comprendre son besoin discret", "action": "Sondage simple ou assistant guidé", "ton": "Curieux, bienveillant", "canal": "Popup", "cta": "🤔 On vous aide à trouver ce que vous cherchez ?"}
 }
 
-# --- Barre latérale : filtres ---
+# --- Barre latérale : filtres dynamiques ---
 st.sidebar.header("🎯 Filtres utilisateur")
 all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
 filters = {
     "Date de clic": ["Toutes"] + all_dates,
     "Session ID": ["Tous"] + sorted(df['session_id'].unique()),
     "Visitor ID": ["Tous"] + sorted(df['visitor_id'].unique()),
-    "Nom d'utilisateur": ["Tous"] + sorted(df['user_name_click'].unique()),
     "Niveau de risque": ["Tous"] + sorted(df['risk_level'].unique())
 }
-selected = {label: st.sidebar.selectbox(f"{label} :", options) for label, options in filters.items()}
+# Ajouter le filtre Nom d'utilisateur seulement si la colonne existe
+def add_user_filter():
+    if 'user_name_click' in df.columns:
+        uniques = sorted(df['user_name_click'].dropna().unique())
+        filters["Nom d'utilisateur"] = ["Tous"] + uniques
+add_user_filter()
+selected = {label: st.sidebar.selectbox(f"{label} :", opts) for label, opts in filters.items()}
 
 # --- Application des filtres ---
 filtered_df = df.copy()
@@ -179,8 +123,8 @@ for label, val in selected.items():
         if key in ["date_de_clic", "yyyymmdd_click"]:
             filtered_df = filtered_df[filtered_df['yyyymmdd_click'].dt.date == val]
         else:
-            filtered_df = filtered_df[filtered_df[key] == val]
-
+            col = 'user_name_click' if label == "Nom d'utilisateur" else key
+            filtered_df = filtered_df[filtered_df[col] == val]
 if filtered_df.empty:
     st.warning("Aucun utilisateur trouvé avec les filtres appliqués.")
     st.stop()
@@ -195,30 +139,24 @@ def compute_grouped(df_grp: pd.DataFrame) -> pd.DataFrame:
         'risk_level': 'max',
         'engagement_score': 'mean'
     }).reset_index()
-
 grouped_df = compute_grouped(filtered_df)
 
 # --- Affichage des métriques et graphiques ---
 st.markdown(f"**Nombre de clics :** {len(filtered_df)}  |  **Utilisateurs uniques :** {filtered_df['visitor_id'].nunique()}")
 col1, col2 = st.columns(2)
 col1.bar_chart(grouped_df['profil'].value_counts(), use_container_width=True)
-
-# Chart engagement
-if selected['Visitor ID'] == 'Tous':
-    series_eng = filtered_df.groupby('yyyymmdd_click')['engagement_score'].mean()
-else:
-    series_eng = filtered_df[filtered_df['visitor_id'] == selected['Visitor ID']]['engagement_score']
+series_eng = (filtered_df.groupby('yyyymmdd_click')['engagement_score'].mean()
+              if selected['Visitor ID'] == 'Tous'
+              else filtered_df[filtered_df['visitor_id'] == selected['Visitor ID']]['engagement_score'])
 col2.line_chart(series_eng, use_container_width=True)
 
-# Tableau des données
+# --- Tableau des données ---
 st.dataframe(grouped_df, use_container_width=True)
 
-# --- Recommandations ---
+# --- Recommandations personnalisées ---
 st.header("✅ Recommandations personnalisées")
-# Calcul du mode DOM par visiteur
 dom_mode = df.groupby('visitor_id')['dom_element_id'] \
-              .agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
-
+             .agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 for idx, row in enumerate(grouped_df.itertuples()):
     with st.expander(f"👤 {row.user_name_click} – {row.interaction_type} (profil: {row.profil}, risque: {row.risk_level})"):
         rec = reco_map[row.interaction_type]
