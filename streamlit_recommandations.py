@@ -95,7 +95,6 @@ else:
 
 st.write(f"Nombre de clics : {len(filtered_df)}")
 st.write(f"Nombre d'utilisateurs uniques (visitor_id) : {filtered_df['visitor_id'].nunique()}")
-st.write(f"Nombre de noms d'utilisateurs uniques : {filtered_df['user_name_click'].nunique()}")
 
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
