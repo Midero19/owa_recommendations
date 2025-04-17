@@ -126,17 +126,17 @@ daily_engagement = (
 )
 
 if not daily_engagement.empty:
-    fig, ax = plt.subplots(figsize=(7, 3.5))
+    fig, ax = plt.subplots(figsize=(10, 4))
     ax.plot(daily_engagement["yyyymmdd_click"], daily_engagement["engagement_score"], marker='o')
     ax.set_xlabel("Date")
     ax.set_ylabel("Score d'engagement moyen")
-    ax.set_title("Évolution de l'engagement dans le temps")
+    ax.set_title("Évolution du taux d'engagement dans le temps")
     ax.grid(True)
     plt.xticks(rotation=45)
     st.pyplot(fig)
 else:
     st.info("Pas de données disponibles pour afficher l'évolution.")
-
+    
 # 📋 Résumé utilisateurs
 st.markdown("## 👥 Résultats des utilisateurs filtrés")
 if not filtered_df.empty:
