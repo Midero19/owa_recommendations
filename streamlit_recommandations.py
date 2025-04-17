@@ -156,7 +156,7 @@ if not filtered_df.empty:
                 st.markdown(f"**CTA :** {reco['cta']}")
 
                 top_dom = dom_by_visitor.get(user['visitor_id'])
-                if pd.notna(top_dom)
+                if pd.notna(top_dom):
                     if top_dom in dom_reco_map:
                         dom = dom_reco_map[top_dom]
                         st.markdown("### 🔍 Élément DOM principal")
