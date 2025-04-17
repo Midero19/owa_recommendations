@@ -146,7 +146,7 @@ if not filtered_df.empty:
     st.dataframe(grouped_df)
 
     st.markdown("## ✅ Recommandations personnalisées")
-    unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'interaction_type', 'profil'])
+    unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
     dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 
     for _, user in unique_users.iterrows():
