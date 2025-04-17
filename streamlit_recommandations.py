@@ -3,22 +3,26 @@ import pandas as pd
 import os
 import gdown
 
-# --- Téléchargement automatique du CSV ---
+# --- (optionnel mais recommandé sur Streamlit Cloud)
+import os
+os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
+
+# --- 📥 Téléchargement du fichier CSV si non présent ---
 file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
 output_path = "final_owa.csv"
 
 if not os.path.exists(output_path):
     gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
-# --- Chargement des données ---
+# --- 📊 Chargement des données ---
 df = pd.read_csv(output_path, sep=";", encoding="utf-8", on_bad_lines="skip", engine="python")
 
-# --- Nettoyage & préparation ---
+# --- 🧹 Prétraitements ---
 df['visitor_id'] = df['visitor_id'].astype(str)
 df['session_id'] = df['session_id'].astype(str)
 df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
 
-# --- Mapping des clusters ---
+# --- 🔁 Mapping des clusters ---
 cluster_labels = {
     0: "Utilisateurs actifs",
     1: "Visiteurs occasionnels",
@@ -28,7 +32,7 @@ cluster_labels = {
 }
 df["profil"] = df["cluster"].map(cluster_labels)
 
-# --- Détection du type d'interaction ---
+# --- 🧠 Détection type d'interaction ---
 def classify_interaction(row):
     if row['is_bounce'] == 1 or row['bounce_rate'] > 80:
         return "💤 Volatile"
@@ -43,7 +47,7 @@ def classify_interaction(row):
 
 df['interaction_type'] = df.apply(classify_interaction, axis=1)
 
-# --- Recommandations générales ---
+# --- 📋 Recommandations génériques par interaction ---
 reco_map = {
     "💤 Volatile": {
         "objectif": "Réduire l’abandon à froid dès la première visite",
@@ -82,7 +86,7 @@ reco_map = {
     }
 }
 
-# --- Recommandations DOM ---
+# --- 🧩 Recommandations DOM spécifiques ---
 dom_reco_map = {
     "nav_menu_link": {
         "objectif": "Faciliter l'accès rapide aux contenus",
@@ -135,63 +139,73 @@ dom_reco_map = {
     }
 }
 
-# --- Filtres indépendants ---
+# --- 🎯 Filtres indépendants ---
 st.sidebar.header("🎯 Filtres utilisateur")
-
 selected_date = st.sidebar.selectbox("Date de clic :", sorted(df['yyyymmdd_click'].dt.date.dropna().unique()))
 selected_session = st.sidebar.selectbox("Session ID :", ["Tous"] + sorted(df['session_id'].dropna().unique()))
 selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(df['visitor_id'].dropna().unique()))
 selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(df['user_name'].dropna().unique()))
 selected_risk = st.sidebar.selectbox("Niveau de risque :", ["Tous"] + sorted(df['risk_level'].dropna().unique()))
 
-# --- Application des filtres ---
-filtered_df = df[df['yyyymmdd_click'].dt.date == selected_date].copy()
+# --- 🧾 Légende profils/interactions ---
+with st.sidebar.expander("ℹ️ Légende des profils et interactions"):
+    st.markdown("""
+**Profils utilisateurs**  
+- 🟢 **Utilisateurs actifs** : fréquemment présents et très impliqués  
+- 🟡 **Visiteurs occasionnels** : peu actifs, peu fréquents  
+- 🟣 **Engagement moyen** : usage modéré de la plateforme  
+- 🔴 **Nouveaux utilisateurs** : récents, encore en découverte  
+- ⚪ **Explorateurs passifs** : naviguent mais interagissent peu
 
+**Types d'interactions**  
+- 😴 **Volatile** : quitte vite le site  
+- 🧠 **Lecteur curieux** : lit beaucoup mais peu d’actions  
+- ⚡ **Engagé silencieux** : reste longtemps mais interagit peu  
+- 💥 **Interactif actif** : très engagé et participatif  
+- 📌 **Standard** : comportement neutre
+    """)
+
+# --- 🔍 Application des filtres ---
+filtered_df = df[df['yyyymmdd_click'].dt.date == selected_date].copy()
 if selected_session != "Tous":
     filtered_df = filtered_df[filtered_df['session_id'] == selected_session]
-
 if selected_visitor != "Tous":
     filtered_df = filtered_df[filtered_df['visitor_id'] == selected_visitor]
-
 if selected_user != "Tous":
     filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
-
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
-# --- Affichage des résultats ---
+# --- 📊 Résumé et tableau ---
 st.markdown(f"### 👥 {len(filtered_df)} utilisateur(s) trouvé(s) pour le {selected_date}")
 if filtered_df.empty:
-    st.warning("Aucun utilisateur ne correspond aux filtres sélectionnés.")
+    st.warning("Aucun utilisateur ne correspond aux filtres.")
 else:
     st.dataframe(filtered_df[['visitor_id', 'user_name', 'profil', 'interaction_type', 'risk_level', 'engagement_score']])
 
-# --- Recommandation personnalisée ---
-if len(filtered_df) == 1:
-    user = filtered_df.iloc[0]
-    st.markdown("## ✅ Recommandation personnalisée")
+# --- 🔁 Recommandations multiples par utilisateur ---
+st.markdown("## 📌 Recommandations utilisateurs filtrés")
 
-    if user['risk_level'] == 1:
-        reco = reco_map.get(user['interaction_type'], {})
-        st.markdown("### 🎯 Comportement général")
-        st.markdown(f"**Objectif :** {reco.get('objectif')}")
-        st.markdown(f"**Action :** {reco.get('action')}")
-        st.markdown(f"**Ton :** {reco.get('ton')}")
-        st.markdown(f"**Canal :** {reco.get('canal')}")
-        st.markdown(f"**CTA :** {reco.get('cta')}")
+for idx, user in filtered_df.iterrows():
+    if user['interaction_type'] in reco_map:
+        with st.expander(f"👤 {user['user_name']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})", expanded=False):
+            reco = reco_map[user['interaction_type']]
+            st.markdown("### 🎯 Comportement général")
+            st.markdown(f"**Objectif :** {reco['objectif']}")
+            st.markdown(f"**Action :** {reco['action']}")
+            st.markdown(f"**Ton :** {reco['ton']}")
+            st.markdown(f"**Canal :** {reco['canal']}")
+            st.markdown(f"**CTA :** {reco['cta']}")
 
-        dom_clicks = df[df['visitor_id'] == user['visitor_id']]['dom_element_id'].dropna()
-        if not dom_clicks.empty:
-            top_dom = dom_clicks.mode().iloc[0]
-            if top_dom in dom_reco_map:
-                dom_reco = dom_reco_map[top_dom]
-                st.markdown("---")
-                st.markdown("### 🔍 Élément DOM principal")
-                st.markdown(f"**Élément :** `{top_dom}`")
-                st.markdown(f"**Objectif :** {dom_reco.get('objectif')}")
-                st.markdown(f"**Action :** {dom_reco.get('action')}")
-                st.markdown(f"**Ton :** {dom_reco.get('ton')}")
-                st.markdown(f"**Canal :** {dom_reco.get('canal')}")
-                st.markdown(f"**CTA :** {dom_reco.get('cta')}")
-    else:
-        st.info("ℹ️ Cet utilisateur n’est pas à risque élevé.")
+            dom_clicks = df[df['visitor_id'] == user['visitor_id']]['dom_element_id'].dropna()
+            if not dom_clicks.empty:
+                top_dom = dom_clicks.mode().iloc[0]
+                if top_dom in dom_reco_map:
+                    dom = dom_reco_map[top_dom]
+                    st.markdown("### 🔍 Élément DOM principal")
+                    st.markdown(f"**Élément :** `{top_dom}`")
+                    st.markdown(f"**Objectif :** {dom['objectif']}")
+                    st.markdown(f"**Action :** {dom['action']}")
+                    st.markdown(f"**Ton :** {dom['ton']}")
+                    st.markdown(f"**Canal :** {dom['canal']}")
+                    st.markdown(f"**CTA :** {dom['cta']}")
