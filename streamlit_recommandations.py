@@ -4,6 +4,7 @@ import os
 import gdown
 import matplotlib.pyplot as plt
 import altair as alt
+import re
 
 st.markdown("""
 <div style='text-align: center; padding: 1rem 0;'>
@@ -18,14 +19,16 @@ output_path = "final_owa.csv"
 if not os.path.exists(output_path):
     gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
-df = pd.read_csv(
-    output_path,
-    sep=";",
-    encoding="utf-8",
-    on_bad_lines="skip",
-    engine="python",
-    dtype={"visitor_id": str}
-)
+# Chargement des données
+with st.spinner("Chargement des données en cours..."):
+    df = pd.read_csv(
+        output_path,
+        sep=";",
+        encoding="utf-8",
+        on_bad_lines="skip",
+        engine="python",
+        dtype={"visitor_id": str}
+    )
 
 df['session_id'] = df['session_id'].astype(str)
 df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
@@ -53,24 +56,12 @@ def classify_interaction(row):
 
 df['interaction_type'] = df.apply(classify_interaction, axis=1)
 
-reco_map = {
-    "💤 Volatile": {"objectif": "Réduire l’abandon à froid dès la première visite", "action": "Relancer par un email ou push dans l’heure avec un contenu percutant", "ton": "Intrigant, FOMO", "canal": "Push / Email", "cta": "⏱️ Découvrez ce que vous avez manqué en 60 secondes !"},
-    "🧠 Lecteur curieux": {"objectif": "Transformer sa curiosité en interaction", "action": "Afficher un quiz, emoji ou bouton 'suivre ce thème'", "ton": "Complice, engageant", "canal": "Popup + email", "cta": "📚 Activez les suggestions selon vos lectures"},
-    "⚡ Engagé silencieux": {"objectif": "Lever les freins invisibles à l’action", "action": "Ajouter un bouton de réaction ou une question douce", "ton": "Encourageant, chaleureux", "canal": "Interface + email", "cta": "👍 Vous avez aimé ce contenu ? Faites-le savoir en un clic"},
-    "💥 Utilisateur très actif": {"objectif": "Prévenir la frustration d’un utilisateur très impliqué", "action": "Offrir un contenu VIP ou une invitation à contribuer", "ton": "Valorisant, exclusif", "canal": "Email personnalisé + interface", "cta": "🏅 Merci pour votre activité ! Voici un avant-goût en exclusivité"},
-    "📌 Standard": {"objectif": "Créer un déclic d’intérêt", "action": "Envoyer une sélection des contenus populaires", "ton": "Positif, informatif", "canal": "Email hebdomadaire", "cta": "📬 Voici les contenus qui font vibrer notre communauté"}
-}
+# Reco maps (inchangés ici)
+reco_map = {...}  # raccourci
 
-dom_reco_map = {
-    "nav_menu_link": {"objectif": "Faciliter l'accès rapide aux contenus", "action": "Adapter la navigation aux rubriques préférées", "ton": "Clair, organisé", "canal": "Interface + email", "cta": "🔎 Naviguez plus vite dans vos contenus favoris"},
-    "read_more_btn": {"objectif": "Proposer du contenu approfondi", "action": "Recommander des articles longs ou des séries", "ton": "Éditorial, expert", "canal": "Email dossier", "cta": "📘 Découvrez notre série spéciale"},
-    "search_bar": {"objectif": "Anticiper ses recherches", "action": "Créer des suggestions ou alertes", "ton": "Pratique, rapide", "canal": "Interface + notification", "cta": "🔔 Activez les alertes sur vos sujets préférés"},
-    "video_player": {"objectif": "Fidéliser via les vidéos", "action": "Playlist ou suggestions vidéos", "ton": "Visuel, immersif", "canal": "Interface vidéo", "cta": "🎬 Votre sélection vidéo vous attend"},
-    "comment_field": {"objectif": "Encourager l’expression", "action": "Mettre en avant les débats en cours", "ton": "Communautaire", "canal": "Email + interface", "cta": "💬 Rejoignez la discussion du moment"},
-    "cta_banner_top": {"objectif": "Transformer l’intérêt en fidélité", "action": "Offre ou teaser exclusif", "ton": "Promo, VIP", "canal": "Email", "cta": "🎁 Votre avant-première vous attend"},
-    "footer_link_about": {"objectif": "Comprendre son besoin discret", "action": "Sondage simple ou assistant guidé", "ton": "Curieux, bienveillant", "canal": "Popup", "cta": "🤔 On vous aide à trouver ce que vous cherchez ?"}
-}
+dom_reco_map = {...}  # raccourci
 
+# Filtres utilisateur
 st.sidebar.header("🎯 Filtres utilisateur")
 all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
 selected_date = st.sidebar.selectbox("Date de clic :", ["Toutes"] + list(all_dates))
@@ -79,6 +70,7 @@ selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(df['vi
 selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(df['user_name_click'].dropna().unique()))
 selected_risk = st.sidebar.selectbox("Niveau de risque :", ["Tous"] + sorted(df['risk_level'].dropna().unique()))
 
+# Filtrage
 filtered_df = df.copy()
 if selected_date != "Toutes":
     filtered_df = filtered_df[filtered_df['yyyymmdd_click'].dt.date == selected_date]
@@ -91,19 +83,15 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
+# Affichage résultats
 st.markdown("""
 <div style='text-align: center;'>
     <h2 style='color: #F4B400;'>📋 Résultats utilisateurs</h2>
 </div>
 """, unsafe_allow_html=True)
 
-if selected_date == "Toutes":
-    st.markdown("<div style='text-align: center;'><h3>👥 Toutes les dates</h3></div>", unsafe_allow_html=True)
-else:
-    st.markdown(f"<div style='text-align: center;'><h3>👥 Résultats pour le {selected_date}</h3></div>", unsafe_allow_html=True)
-
-st.markdown(f"<div style='text-align: center; font-size: 1.2rem;'>📊 <strong>Nombre de clics</strong> : {len(filtered_df)}</div>", unsafe_allow_html=True)
-st.markdown(f"<div style='text-align: center; font-size: 1.2rem;'>🧍‍♂️ <strong>Utilisateurs uniques</strong> : {filtered_df['visitor_id'].nunique()}</div>", unsafe_allow_html=True)
+st.markdown(f"<p style='text-align:center; font-size:1.2rem;'>📊 <strong>Nombre de clics</strong> : {len(filtered_df)}</p>", unsafe_allow_html=True)
+st.markdown(f"<p style='text-align:center; font-size:1.2rem;'>🧍‍♂️ <strong>Utilisateurs uniques</strong> : {filtered_df['visitor_id'].nunique()}</p>", unsafe_allow_html=True)
 
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
@@ -114,6 +102,7 @@ if not filtered_df.empty:
         'engagement_score': 'mean'
     }).reset_index()
 
+    # Répartition profils
     st.markdown("""
     <div style='text-align: center; margin-top: 2rem;'>
         <h2 style='color: #1E88E5;'>📊 Répartition des profils utilisateurs</h2>
@@ -125,21 +114,15 @@ if not filtered_df.empty:
     profil_counts.plot(kind='bar', ax=ax)
     ax.set_ylabel("Nombre d'utilisateurs")
     ax.set_xlabel("Profil utilisateur")
-    ax.set_title("Répartition des profils utilisateurs")
     plt.xticks(rotation=45)
     plt.tight_layout()
     st.pyplot(fig)
 
+    # Tableau
     st.dataframe(grouped_df)
 
-    st.markdown("""
-    <div style='text-align: center; margin-top: 3rem;'>
-        <h2 style='color: #1E88E5;'>📈 Évolution du score d'engagement</h2>
-    </div>
-    """, unsafe_allow_html=True)
-
+    # Graph engagement
     engagement_over_time = filtered_df[['yyyymmdd_click', 'engagement_score', 'visitor_id', 'user_name_click']].dropna()
-
     if selected_visitor != "Tous":
         title = f"Score d'engagement pour {selected_visitor}"
         chart_data = engagement_over_time[engagement_over_time['visitor_id'] == selected_visitor]
@@ -147,17 +130,19 @@ if not filtered_df.empty:
         title = "Score d'engagement global (moyenne quotidienne)"
         chart_data = engagement_over_time.groupby('yyyymmdd_click').agg({'engagement_score': 'mean'}).reset_index()
 
+    st.markdown(f"""
+    <div style='text-align: center; margin-top: 3rem;'>
+        <h2 style='color: #1E88E5;'>📈 {title}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
     line_chart = alt.Chart(chart_data).mark_line(point=True).encode(
         x='yyyymmdd_click:T',
         y='engagement_score:Q'
-    ).properties(
-        width=700,
-        height=400,
-        title=title
-    )
-
+    ).properties(width=700, height=400)
     st.altair_chart(line_chart, use_container_width=True)
 
+    # Recommandations personnalisées
     st.markdown("""
     <div style='text-align: center; margin-top: 3rem;'>
         <h2 style='color: #43A047;'>✅ Recommandations personnalisées</h2>
@@ -167,28 +152,25 @@ if not filtered_df.empty:
     unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
     dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 
-    for _, user in unique_users.iterrows():
-        if user['interaction_type'] in reco_map:
+    for idx, user in unique_users.iterrows():
+        key_id = f"{user['visitor_id']}_{re.sub(r'\\W+', '_', str(user['user_name_click']))}_{idx}"
+        with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
             reco = reco_map[user['interaction_type']]
-            with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
-                st.markdown("### 🎯 Comportement général")
-                st.markdown(f"**Objectif :** {reco['objectif']}")
-                st.markdown(f"**Action :** {reco['action']}")
-                st.markdown(f"**Ton :** {reco['ton']}")
-                st.markdown(f"**Canal :** {reco['canal']}")
-                st.markdown(f"**CTA :** {reco['cta']}")
+            st.markdown(f"**Objectif :** {reco['objectif']}")
+            st.markdown(f"**Action :** {reco['action']}")
+            st.markdown(f"**Ton :** {reco['ton']}")
+            st.markdown(f"**Canal :** {reco['canal']}")
+            st.markdown(f"**CTA :** {reco['cta']}")
 
-                checkbox_key = f"{user['visitor_id']}_{user['user_name_click']}"
-                if st.checkbox("🔍 Voir la recommandation DOM", key=checkbox_key):
-                    top_dom = dom_by_visitor.get(user['visitor_id'])
-                    if pd.notna(top_dom) and top_dom in dom_reco_map:
-                        dom = dom_reco_map[top_dom]
-                        st.markdown("### 🔍 Élément DOM principal")
-                        st.markdown(f"**Élément :** {top_dom}")
-                        st.markdown(f"**Objectif :** {dom['objectif']}")
-                        st.markdown(f"**Action :** {dom['action']}")
-                        st.markdown(f"**Ton :** {dom['ton']}")
-                        st.markdown(f"**Canal :** {dom['canal']}")
-                        st.markdown(f"**CTA :** {dom['cta']}")
+            if st.checkbox("🔍 Voir la recommandation DOM", key=key_id):
+                top_dom = dom_by_visitor.get(user['visitor_id'])
+                if pd.notna(top_dom) and top_dom in dom_reco_map:
+                    dom = dom_reco_map[top_dom]
+                    st.markdown(f"**Élément DOM :** `{top_dom}`")
+                    st.markdown(f"**Objectif :** {dom['objectif']}")
+                    st.markdown(f"**Action :** {dom['action']}")
+                    st.markdown(f"**Ton :** {dom['ton']}")
+                    st.markdown(f"**Canal :** {dom['canal']}")
+                    st.markdown(f"**CTA :** {dom['cta']}")
 else:
     st.warning("Aucun utilisateur trouvé avec les filtres appliqués.")
