@@ -9,21 +9,6 @@ os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
 file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"
 output_path = "final_owa.csv"
 
-if not os.path.exists(output_path):
-    gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
-
-df = pd.read_csv(
-    output_path,
-    sep=";",
-    encoding="utf-8",
-    on_bad_lines="skip",
-    engine="python",
-    dtype={"visitor_id": str}
-)
-
-df['session_id'] = df['session_id'].astype(str)
-df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
-
 cluster_labels = {
     0: "Utilisateurs actifs",
     1: "Visiteurs occasionnels",
@@ -31,7 +16,6 @@ cluster_labels = {
     4: "Nouveaux utilisateurs",
     6: "Explorateurs passifs"
 }
-df["profil"] = df["cluster"].map(cluster_labels)
 
 def classify_interaction(row):
     if row['is_bounce'] == 1 or row['bounce_rate'] > 80:
@@ -45,7 +29,32 @@ def classify_interaction(row):
     else:
         return "📌 Standard"
 
-df['interaction_type'] = df.apply(classify_interaction, axis=1)
+@st.cache_data
+def load_data():
+    if not os.path.exists(output_path):
+        gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
+    df = pd.read_csv(
+        output_path,
+        sep=";",
+        encoding="utf-8",
+        on_bad_lines="skip",
+        engine="python",
+        dtype={"visitor_id": str}
+    )
+    df['session_id'] = df['session_id'].astype(str)
+    df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
+    df['user_name_click'] = df['user_name_click'].fillna("Inconnu")
+    df["profil"] = df["cluster"].map(cluster_labels)
+    df['interaction_type'] = df.apply(classify_interaction, axis=1)
+    return df
+
+@st.cache_data
+def get_dom_by_visitor(df):
+    return df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
+
+def safe_mode(series):
+    mode = series.mode()
+    return mode.iloc[0] if not mode.empty else "Non défini"
 
 reco_map = {
     "💤 Volatile": {"objectif": "Réduire l’abandon à froid dès la première visite", "action": "Relancer par un email ou push dans l’heure avec un contenu percutant", "ton": "Intrigant, FOMO", "canal": "Push / Email", "cta": "⏱ Découvrez ce que vous avez manqué en 60 secondes !"},
@@ -64,6 +73,8 @@ dom_reco_map = {
     "cta_banner_top": {"objectif": "Transformer l’intérêt en fidélité", "action": "Offre ou teaser exclusif", "ton": "Promo, VIP", "canal": "Email", "cta": "🎁 Votre avant-première vous attend"},
     "footer_link_about": {"objectif": "Comprendre son besoin discret", "action": "Sondage simple ou assistant guidé", "ton": "Curieux, bienveillant", "canal": "Popup", "cta": "🤔 On vous aide à trouver ce que vous cherchez ?"}
 }
+
+df = load_data()
 
 # Filtres
 st.sidebar.header("🎯 Filtres utilisateur")
@@ -86,7 +97,7 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
-# Statistiques + graphique engagement
+# Statistiques + graphique
 st.markdown("## 📊 Statistiques filtrées")
 with st.expander("ℹ Légende profils / interactions"):
     st.markdown("""
@@ -103,7 +114,6 @@ with st.expander("ℹ Légende profils / interactions"):
 """)
 
 st.markdown("### 📈 Évolution du taux d'engagement moyen")
-
 daily_engagement = (
     filtered_df.dropna(subset=["yyyymmdd_click", "engagement_score"])
     .groupby(filtered_df['yyyymmdd_click'].dt.date)["engagement_score"]
@@ -136,8 +146,8 @@ st.write(f"Nombre d'utilisateurs uniques (visitor_id) : {filtered_df['visitor_id
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
         'yyyymmdd_click': 'min',
-        'profil': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
-        'interaction_type': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        'profil': safe_mode,
+        'interaction_type': safe_mode,
         'risk_level': 'max',
         'engagement_score': 'mean'
     }).reset_index()
@@ -145,7 +155,6 @@ if not filtered_df.empty:
     max_rows = st.sidebar.slider("Nombre max de lignes à afficher :", 10, 500, 100)
     st.dataframe(grouped_df.head(max_rows))
 
-    # Condition : afficher les recommandations uniquement si un filtre est appliqué
     filters_applied = (
         selected_date != "Toutes"
         or selected_session != "Tous"
