@@ -138,11 +138,48 @@ st.write(f"Nombre de noms d'utilisateurs uniques : {filtered_df['user_name_click
 
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
-    'yyyymmdd_click': 'min',
-    'profil': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
-    'interaction_type': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
-    'risk_level': 'max',
-    'engagement_score': 'mean'
-}).reset_index()
+        'yyyymmdd_click': 'min',
+        'profil': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        'interaction_type': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        'risk_level': 'max',
+        'engagement_score': 'mean'
+    }).reset_index()
 
-    
+    with st.spinner("⏳ Chargement du tableau..."):
+        st.table(grouped_df)
+
+    st.markdown("## ✅ Recommandations personnalisées")
+    show_all = st.checkbox("Afficher tous les utilisateurs filtrés", value=False)
+
+    unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
+    dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
+
+    max_display = 30
+    if not show_all and len(unique_users) > max_display:
+        st.info(f"⚠️ Affichage limité aux {max_display} premiers utilisateurs pour des raisons de performance.")
+    display_users = unique_users if show_all else unique_users.head(max_display)
+
+    for _, user in display_users.iterrows():
+        if user['interaction_type'] in reco_map:
+            reco = reco_map[user['interaction_type']]
+            with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
+                st.markdown("### 🎯 Comportement général")
+                st.markdown(f"**Objectif :** {reco['objectif']}")
+                st.markdown(f"**Action :** {reco['action']}")
+                st.markdown(f"**Ton :** {reco['ton']}")
+                st.markdown(f"**Canal :** {reco['canal']}")
+                st.markdown(f"**CTA :** {reco['cta']}")
+
+                if st.checkbox(f"🔍 Voir la recommandation DOM", key=f"{user['visitor_id']}"):
+                    top_dom = dom_by_visitor.get(user['visitor_id'])
+                    if pd.notna(top_dom) and top_dom in dom_reco_map:
+                        dom = dom_reco_map[top_dom]
+                        st.markdown("### 🔍 Élément DOM principal")
+                        st.markdown(f"**Élément :** `{top_dom}`")
+                        st.markdown(f"**Objectif :** {dom['objectif']}")
+                        st.markdown(f"**Action :** {dom['action']}")
+                        st.markdown(f"**Ton :** {dom['ton']}")
+                        st.markdown(f"**Canal :** {dom['canal']}")
+                        st.markdown(f"**CTA :** {dom['cta']}")
+else:
+    st.warning("Aucun utilisateur trouvé avec les filtres appliqués.")
