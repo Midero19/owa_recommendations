@@ -1,90 +1,65 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
-from sklearn.metrics import pairwise_distances
 import os
 import gdown
 
-# 📥 Télécharger le fichier CSV depuis Google Drive si non présent
-file_id = "1oE4DlrriUpKeUe8-NYBNEQ-6BJurG55D"
-output_path = "final.csv"
+# 📥 Télécharger le fichier final_owa.csv depuis Google Drive si non présent
+file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
+output_path = "final_owa.csv"
 
 if not os.path.exists(output_path):
     gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
 # CONFIGURATION DE LA PAGE
 st.set_page_config(page_title="Dashboard DG - Segments utilisateurs", layout="wide")
-st.title("📊 Dashboard DG – Segmentation utilisateurs Management & Datascience")
-st.markdown("#### 🔄 Basé sur clustering KMeans + fusion intelligente (v1.1)")
+st.title("\U0001F4CA Dashboard DG – Segmentation utilisateurs Management & Datascience")
+st.markdown("#### \U0001F501 Basé sur clustering préexistant (final_owa.csv)")
 st.markdown("---")
 
 # CHARGEMENT DES DONNÉES
 try:
-    df = pd.read_csv("final.csv")
+    df = pd.read_csv("final_owa.csv")
 except FileNotFoundError:
-    st.error("Le fichier 'final.csv' est introuvable.")
+    st.error("Le fichier 'final_owa.csv' est introuvable.")
     st.stop()
 
-# AGGRÉGATION PAR UTILISATEUR
-user_df = df.groupby("visitor_id").agg({
-    'rfm_recency': 'mean',
-    'rfm_frequency': 'mean',
-    'rfm_intensity': 'mean',
-    'engagement_score': 'mean',
-    'engagement_density': 'mean',
-    'avg_actions_per_session': 'mean',
-    'avg_session_duration': 'mean',
-    'bounce_rate': 'mean',
-    'is_recent_active': 'max'
-}).reset_index()
-
-# CLUSTERING
-features = [
-    'rfm_recency', 'rfm_frequency', 'rfm_intensity',
-    'engagement_score', 'engagement_density',
-    'avg_actions_per_session', 'avg_session_duration',
-    'bounce_rate', 'is_recent_active'
-]
-
-X = user_df[features].fillna(0)
-X_scaled = StandardScaler().fit_transform(X)
-
-kmeans = KMeans(n_clusters=7, random_state=42, n_init=10)
-user_df['cluster'] = kmeans.fit_predict(X_scaled)
-
-# FUSION DE CLUSTERS 2 ET 5 VERS LEUR PLUS PROCHE
-centroids = pd.DataFrame(X_scaled).groupby(user_df['cluster']).mean()
-dist_matrix = pairwise_distances(centroids)
-
-def closest_cluster(from_cluster, exclude_clusters):
-    distances = dist_matrix[from_cluster].copy()
-    distances[exclude_clusters] = np.inf
-    return np.argmin(distances)
-
-nearest_for_2 = closest_cluster(2, exclude_clusters=[2, 5])
-nearest_for_5 = closest_cluster(5, exclude_clusters=[2, 5])
-
-user_df['cluster'] = user_df['cluster'].replace({
-    2: nearest_for_2,
-    5: nearest_for_5
-})
-
 # MAPPING DES PROFILS
-cluster_labels = {
-    0: "🔥 Utilisateurs actifs",
-    1: "🟠 Visiteurs occasionnels",
-    3: "🟣 Engagement moyen",
-    4: "🔴 Nouveaux utilisateurs",
-    6: "🟢 Explorateurs passifs"
+mapping = {
+    0: "\U0001F7E0 Visiteurs occasionnels",
+    1: "\U0001F7E3 Engagement moyen",
+    3: "\U0001F525 Utilisateurs actifs",
+    4: "\U0001F7E2 Explorateurs passifs",
+    6: "\U0001F534 Nouveaux utilisateurs"
 }
-user_df['profil'] = user_df['cluster'].map(cluster_labels)
+df['profil'] = df['cluster'].map(mapping)
+
+usernames = df['user_name_click'].dropna().unique() if 'user_name_click' in df.columns else []
+
+# --- FILTRES DYNAMIQUES ---
+st.sidebar.header("\U0001F50D Filtres utilisateurs")
+
+selected_profil = st.sidebar.multiselect("Filtrer par profil:", df['profil'].dropna().unique())
+selected_actif = st.sidebar.selectbox("Actif récemment:", ["Tous", "Oui", "Non"])
+score_min, score_max = st.sidebar.slider("Score d'engagement:", float(df['engagement_score'].min()), float(df['engagement_score'].max()), (float(df['engagement_score'].min()), float(df['engagement_score'].max())))
+
+selected_username = st.sidebar.selectbox("Filtrer par nom d'utilisateur:", options=["Tous"] + sorted(usernames)) if len(usernames) > 0 else "Tous"
+
+filtered_df = df.copy()
+if selected_profil:
+    filtered_df = filtered_df[filtered_df['profil'].isin(selected_profil)]
+if selected_actif != "Tous":
+    filtered_df = filtered_df[filtered_df['is_recent_active'] == (1 if selected_actif == "Oui" else 0)]
+filtered_df = filtered_df[(filtered_df['engagement_score'] >= score_min) & (filtered_df['engagement_score'] <= score_max)]
+if selected_username != "Tous":
+    filtered_df = filtered_df[filtered_df['user_name_click'] == selected_username]
+
+# --- AFFICHAGE ---
 
 # KPIs GÉNÉRAUX
-nb_total = len(user_df)
-nb_actifs = len(user_df[user_df["profil"] == "🔥 Utilisateurs actifs"])
-nb_passifs = len(user_df[user_df["profil"].isin(["🟠 Visiteurs occasionnels", "🟢 Explorateurs passifs"])])
+nb_total = len(df)
+nb_actifs = len(df[df["profil"] == "🔥 Utilisateurs actifs"])
+nb_passifs = len(df[df["profil"].isin(["🟠 Visiteurs occasionnels", "🟢 Explorateurs passifs"])])
 pct_actifs = round(nb_actifs / nb_total * 100, 1)
 pct_passifs = round(nb_passifs / nb_total * 100, 1)
 
@@ -93,10 +68,13 @@ col1.metric("👥 Total utilisateurs", f"{nb_total:,}")
 col2.metric("✅ Actifs", f"{nb_actifs:,} ({pct_actifs}%)")
 col3.metric("⚠️ À risque", f"{nb_passifs:,} ({pct_passifs}%)")
 
-st.markdown("---")
-st.markdown("## 👤 Profils utilisateurs & recommandations")
+# AFFICHAGE DU TABLEAU FILTRÉ
+st.markdown("## 👤 Profils utilisateurs filtrés")
+st.dataframe(filtered_df[['visitor_id', 'profil', 'user_name_click', 'engagement_score', 'rfm_frequency', 'avg_session_duration']])
 
 # RECOMMANDATIONS PAR PROFIL
+st.markdown("---")
+st.markdown("## 💬 Recommandations par profil")
 reco_map = {
     "🟠 Visiteurs occasionnels": {
         "objectif": "Réengager avec contenu court & pertinent",
@@ -134,17 +112,14 @@ reco_map = {
         "cta": "Dites-nous ce qui vous intéresse et on vous guide"
     }
 }
-
-# AFFICHAGE PAR PROFIL
-for profil in user_df["profil"].dropna().unique():
-    df_seg = user_df[user_df["profil"] == profil]
-    r = reco_map.get(profil, {})
-    with st.expander(f"{profil} – {len(df_seg)} utilisateurs"):
-        st.markdown(f"**🎯 Objectif :** {r.get('objectif','')}")
-        st.markdown(f"**✅ Action recommandée :** {r.get('action','')}")
-        st.markdown(f"**🗣️ Ton conseillé :** {r.get('ton','')}")
-        st.markdown(f"**📡 Canal :** {r.get('canal','')}")
-        st.markdown(f"**👉 Exemple :** {r.get('cta','')}")
+for profil, group in df.groupby("profil"):
+    reco = reco_map.get(profil, {})
+    with st.expander(f"{profil} – {len(group)} utilisateurs"):
+        st.markdown(f"**🎯 Objectif :** {reco.get('objectif', '')}")
+        st.markdown(f"**✅ Action recommandée :** {reco.get('action', '')}")
+        st.markdown(f"**🗣️ Ton conseillé :** {reco.get('ton', '')}")
+        st.markdown(f"**📡 Canal :** {reco.get('canal', '')}")
+        st.markdown(f"**👉 Exemple :** {reco.get('cta', '')}")
 
 # SYNTHÈSE DG
 st.markdown("---")
@@ -155,34 +130,28 @@ st.markdown("""
 - Une séquence d’accueil permettra de mieux intégrer les nouveaux.
 """)
 
-# 🔍 FILTRE PAR VISITOR_ID
+# RECHERCHE PAR VISITOR_ID
 st.markdown("---")
-st.markdown("## 🔎 Explorer un utilisateur par ID")
+st.markdown("## 🔎 Rechercher un utilisateur spécifique")
+search_id = st.text_input("Entrer un visitor_id exact :")
 
-visitor_ids = user_df['visitor_id'].unique()
-selected_id = st.selectbox("Sélectionnez un visitor_id :", sorted(visitor_ids))
-
-user_info = user_df[user_df['visitor_id'] == selected_id]
-
-if not user_info.empty:
-    st.markdown(f"### 👤 Infos pour l'utilisateur ID : `{selected_id}`")
-
-    st.dataframe(user_info[[ 
-        'rfm_recency', 'rfm_frequency', 'rfm_intensity',
-        'engagement_score', 'engagement_density',
-        'avg_actions_per_session', 'avg_session_duration',
-        'bounce_rate', 'is_recent_active'
-    ]].T.rename(columns={user_info.index[0]: "Valeur"}))
-
-    profil = user_info['profil'].values[0]
-    st.markdown(f"### 🧠 Profil détecté : **{profil}**")
-
-    reco = reco_map.get(profil, {})
-    st.markdown("#### ✅ Recommandation personnalisée")
-    st.markdown(f"**🎯 Objectif :** {reco.get('objectif','')}")
-    st.markdown(f"**📢 Action :** {reco.get('action','')}")
-    st.markdown(f"**🗣️ Ton :** {reco.get('ton','')}")
-    st.markdown(f"**📡 Canal :** {reco.get('canal','')}")
-    st.markdown(f"**👉 Exemple de message :** {reco.get('cta','')}")
-else:
-    st.warning("Aucun utilisateur trouvé avec cet ID.")
+if search_id:
+    try:
+        visitor_id_int = int(search_id)
+        user_info = df[df['visitor_id'] == visitor_id_int]
+        if not user_info.empty:
+            st.markdown(f"### 👤 Infos pour l'utilisateur ID : `{visitor_id_int}`")
+            st.dataframe(user_info.T.rename(columns={user_info.index[0]: "Valeur"}))
+            profil = user_info['profil'].values[0]
+            st.markdown(f"### 🧠 Profil détecté : **{profil}**")
+            reco = reco_map.get(profil, {})
+            st.markdown("#### ✅ Recommandation personnalisée")
+            st.markdown(f"**🎯 Objectif :** {reco.get('objectif','')}")
+            st.markdown(f"**📢 Action :** {reco.get('action','')}")
+            st.markdown(f"**🗣️ Ton :** {reco.get('ton','')}")
+            st.markdown(f"**📡 Canal :** {reco.get('canal','')}")
+            st.markdown(f"**👉 Exemple de message :** {reco.get('cta','')}")
+        else:
+            st.warning("Aucun utilisateur trouvé avec cet ID.")
+    except ValueError:
+        st.warning("Veuillez entrer un ID valide (nombre entier).")
