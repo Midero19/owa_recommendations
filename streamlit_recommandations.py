@@ -135,10 +135,15 @@ else:
 st.write(f"Nombre d’utilisateurs : {len(filtered_df)}")
 
 if not filtered_df.empty:
-    st.dataframe(filtered_df[[
-        'yyyymmdd_click', 'visitor_id', 'user_name_click',
-        'profil', 'interaction_type', 'risk_level', 'engagement_score'
-    ]])
+    grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
+    'yyyymmdd_click': 'min',
+    'profil': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+    'interaction_type': lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+    'risk_level': 'max',
+    'engagement_score': 'mean'
+}).reset_index()
+
+    st.dataframe(grouped_df)
 
     st.markdown("## ✅ Recommandations personnalisées")
     unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'interaction_type', 'profil'])
