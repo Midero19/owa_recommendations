@@ -4,7 +4,6 @@ import os
 import gdown
 import matplotlib.pyplot as plt
 
-os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
 
 file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"
 output_path = "final_owa.csv"
@@ -85,42 +84,7 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
-st.markdown("## 📊 Statistiques filtrées")
-with st.expander("ℹ️ Légende profils / interactions"):
-    st.markdown("""
-**Profils utilisateurs**  
-🔥 Utilisateurs actifs • 🟠 Visiteurs occasionnels  
-🟣 Engagement moyen • 🔴 Nouveaux utilisateurs • 🟢 Explorateurs passifs
 
-**Types d'interactions**  
-😴 Volatile : visite très courte ou abandonnée  
-🧠 Lecteur curieux : consulte beaucoup de pages sans agir  
-⚡ Engagé silencieux : reste longtemps sans interagir  
-💥 Utilisateur très actif : agit beaucoup ou commente  
-📌 Standard : comportement moyen sans traits distinctifs
-""")
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("#### Profils")
-    profil_counts = filtered_df['profil'].value_counts()
-    fig1, ax1 = plt.subplots(figsize=(6, 6))
-    if not profil_counts.empty:
-        ax1.pie(profil_counts, labels=profil_counts.index, autopct='%1.1f%%', startangle=90)
-        ax1.axis('equal')
-        st.pyplot(fig1)
-    else:
-        st.info("Aucun profil à afficher.")
-
-with col2:
-    st.markdown("#### Interactions")
-    interaction_counts = filtered_df['interaction_type'].value_counts()
-    fig2, ax2 = plt.subplots(figsize=(6, 6))
-    if not interaction_counts.empty:
-        ax2.bar(interaction_counts.index, interaction_counts.values)
-        ax2.set_ylabel("Utilisateurs")
-        ax2.tick_params(axis='x', rotation=45)
-        st.pyplot(fig2)
     else:
         st.info("Aucune interaction à afficher.")
 
@@ -145,19 +109,15 @@ if not filtered_df.empty:
         'engagement_score': 'mean'
     }).reset_index()
 
-    with st.spinner("⏳ Chargement du tableau..."):
-        st.table(grouped_df)
+    st.table(grouped_df)
 
     st.markdown("## ✅ Recommandations personnalisées")
-    show_all = st.checkbox("Afficher tous les utilisateurs filtrés", value=False)
+    show_all = True
 
     unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
     dom_by_visitor = df[['visitor_id', 'dom_element_id']].dropna().groupby('visitor_id')['dom_element_id'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None)
 
-    max_display = 30
-    if not show_all and len(unique_users) > max_display:
-        st.info(f"⚠️ Affichage limité aux {max_display} premiers utilisateurs pour des raisons de performance.")
-    display_users = unique_users if show_all else unique_users.head(max_display)
+    display_users = unique_users
 
     for _, user in display_users.iterrows():
         if user['interaction_type'] in reco_map:
