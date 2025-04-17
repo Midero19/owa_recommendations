@@ -3,7 +3,7 @@ import pandas as pd
 import os
 import gdown
 
-# --- Téléchargement du fichier depuis Google Drive ---
+# --- Télécharger le fichier depuis Google Drive ---
 file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
 output_path = "final_owa.csv"
 
@@ -12,6 +12,13 @@ if not os.path.exists(output_path):
 
 # --- Chargement des données ---
 df = pd.read_csv(output_path, sep=";", encoding="utf-8", on_bad_lines="skip", engine="python")
+
+# 🔧 Correction de l'affichage des IDs
+df['visitor_id'] = df['visitor_id'].astype(str)
+df['session_id'] = df['session_id'].astype(str)
+
+# 🔧 Conversion correcte des dates
+df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
 
 # --- Mapping des clusters ---
 cluster_labels = {
@@ -23,7 +30,7 @@ cluster_labels = {
 }
 df["profil"] = df["cluster"].map(cluster_labels)
 
-# --- Typologie comportementale ---
+# --- Classification comportementale ---
 def classify_interaction(row):
     if row['is_bounce'] == 1 or row['bounce_rate'] > 80:
         return "💤 Volatile"
@@ -130,13 +137,10 @@ dom_reco_map = {
     }
 }
 
-# --- Filtres contextuels basés sur la date ---
+# --- Filtres hiérarchiques ---
 st.sidebar.header("📅 Filtres par activité utilisateur")
 
-# Convertir yyyymmdd_click en datetime
-df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
 available_dates = df['yyyymmdd_click'].dt.date.dropna().unique()
-
 selected_date = st.sidebar.date_input(
     "Sélectionnez une date de clic :", 
     min_value=min(available_dates), 
@@ -148,36 +152,28 @@ filtered_by_date = df[df['yyyymmdd_click'].dt.date == selected_date]
 
 # Session ID
 available_sessions = filtered_by_date['session_id'].dropna().unique()
-selected_session = st.sidebar.selectbox(
-    "Session ID :", ["Tous"] + sorted(map(str, available_sessions))
-)
+selected_session = st.sidebar.selectbox("Session ID :", ["Tous"] + sorted(available_sessions))
 
 # Visitor ID
 available_visitors = filtered_by_date['visitor_id'].dropna().unique()
-selected_visitor = st.sidebar.selectbox(
-    "Visitor ID :", ["Tous"] + sorted(map(str, available_visitors))
-)
+selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(available_visitors))
 
 # User name
 available_users = filtered_by_date['user_name'].dropna().unique()
-selected_user = st.sidebar.selectbox(
-    "Nom d'utilisateur :", ["Tous"] + sorted(available_users)
-)
+selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(available_users))
 
 # Risk level
 available_risks = sorted(filtered_by_date['risk_level'].dropna().unique())
-selected_risk = st.sidebar.selectbox(
-    "Niveau de risque (1 = élevé)", ["Tous"] + available_risks
-)
+selected_risk = st.sidebar.selectbox("Niveau de risque (1 = élevé)", ["Tous"] + available_risks)
 
 # --- Application des filtres cumulés ---
 filtered_df = filtered_by_date.copy()
 
 if selected_session != "Tous":
-    filtered_df = filtered_df[filtered_df['session_id'].astype(str) == selected_session]
+    filtered_df = filtered_df[filtered_df['session_id'] == selected_session]
 
 if selected_visitor != "Tous":
-    filtered_df = filtered_df[filtered_df['visitor_id'].astype(str) == selected_visitor]
+    filtered_df = filtered_df[filtered_df['visitor_id'] == selected_visitor]
 
 if selected_user != "Tous":
     filtered_df = filtered_df[filtered_df['user_name'] == selected_user]
@@ -192,7 +188,7 @@ if filtered_df.empty:
 else:
     st.dataframe(filtered_df[['visitor_id', 'user_name', 'profil', 'interaction_type', 'risk_level', 'engagement_score']])
 
-# --- Recommandation individuelle si un seul utilisateur sélectionné ---
+# --- Recommandation si un seul utilisateur ---
 if len(filtered_df) == 1:
     user = filtered_df.iloc[0]
     st.markdown("## ✅ Recommandation personnalisée")
