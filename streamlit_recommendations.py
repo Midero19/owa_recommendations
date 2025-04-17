@@ -134,7 +134,7 @@ dom_reco_map = {
 st.sidebar.header("📅 Filtres par activité utilisateur")
 
 # Convertir yyyymmdd_click en datetime
-df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'], errors='coerce')
+df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
 available_dates = df['yyyymmdd_click'].dt.date.dropna().unique()
 
 selected_date = st.sidebar.date_input(
