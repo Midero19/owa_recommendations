@@ -1,6 +1,11 @@
 import streamlit as st
 
-st.title("🧠 Moteur de recommandations utilisateurs")
+st.markdown("""
+<div style='text-align: center; padding: 1rem 0;'>
+    <h1 style='color: #4CAF50;'>🧠 Moteur de recommandations utilisateurs</h1>
+    <p style='color: grey;'>Analyse comportementale et suggestions personnalisées en un clic</p>
+</div>
+""", unsafe_allow_html=True)
 import pandas as pd
 import os
 import gdown
@@ -95,6 +100,7 @@ else:
 
 st.write(f"Nombre de clics : {len(filtered_df)}")
 st.write(f"Nombre d'utilisateurs uniques (visitor_id) : {filtered_df['visitor_id'].nunique()}")
+st.write(f"Nombre de noms d'utilisateurs uniques : {filtered_df['user_name_click'].nunique()}")
 
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
