@@ -3,21 +3,17 @@ import pandas as pd
 import os
 import gdown
 
-# --- Télécharger le fichier depuis Google Drive ---
+# --- Télécharger le fichier CSV depuis Google Drive ---
 file_id = "1ygyiExXkF-pDxwNmxyX_MPev4znvnY8Y"
 output_path = "final_owa.csv"
 
 if not os.path.exists(output_path):
     gdown.download(f"https://drive.google.com/uc?id={file_id}", output_path, quiet=False)
 
-# --- Chargement des données ---
+# --- Chargement et préparation des données ---
 df = pd.read_csv(output_path, sep=";", encoding="utf-8", on_bad_lines="skip", engine="python")
-
-# 🔧 Correction de l'affichage des IDs
 df['visitor_id'] = df['visitor_id'].astype(str)
 df['session_id'] = df['session_id'].astype(str)
-
-# 🔧 Conversion correcte des dates
 df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
 
 # --- Mapping des clusters ---
@@ -137,37 +133,17 @@ dom_reco_map = {
     }
 }
 
-# --- Filtres hiérarchiques ---
-st.sidebar.header("📅 Filtres par activité utilisateur")
+# --- Filtres indépendants ---
+st.sidebar.header("🎯 Filtres utilisateur")
 
-available_dates = df['yyyymmdd_click'].dt.date.dropna().unique()
-selected_date = st.sidebar.date_input(
-    "Sélectionnez une date de clic :", 
-    min_value=min(available_dates), 
-    max_value=max(available_dates)
-)
+selected_date = st.sidebar.selectbox("Date de clic :", sorted(df['yyyymmdd_click'].dt.date.dropna().unique()))
+selected_session = st.sidebar.selectbox("Session ID :", ["Tous"] + sorted(df['session_id'].dropna().unique()))
+selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(df['visitor_id'].dropna().unique()))
+selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(df['user_name'].dropna().unique()))
+selected_risk = st.sidebar.selectbox("Niveau de risque :", ["Tous"] + sorted(df['risk_level'].dropna().unique()))
 
-# Filtrage par date
-filtered_by_date = df[df['yyyymmdd_click'].dt.date == selected_date]
-
-# Session ID
-available_sessions = filtered_by_date['session_id'].dropna().unique()
-selected_session = st.sidebar.selectbox("Session ID :", ["Tous"] + sorted(available_sessions))
-
-# Visitor ID
-available_visitors = filtered_by_date['visitor_id'].dropna().unique()
-selected_visitor = st.sidebar.selectbox("Visitor ID :", ["Tous"] + sorted(available_visitors))
-
-# User name
-available_users = filtered_by_date['user_name'].dropna().unique()
-selected_user = st.sidebar.selectbox("Nom d'utilisateur :", ["Tous"] + sorted(available_users))
-
-# Risk level
-available_risks = sorted(filtered_by_date['risk_level'].dropna().unique())
-selected_risk = st.sidebar.selectbox("Niveau de risque (1 = élevé)", ["Tous"] + available_risks)
-
-# --- Application des filtres cumulés ---
-filtered_df = filtered_by_date.copy()
+# --- Application des filtres ---
+filtered_df = df[df['yyyymmdd_click'].dt.date == selected_date].copy()
 
 if selected_session != "Tous":
     filtered_df = filtered_df[filtered_df['session_id'] == selected_session]
@@ -181,20 +157,20 @@ if selected_user != "Tous":
 if selected_risk != "Tous":
     filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
 
-# --- Affichage des résultats ---
-st.markdown(f"### 👥 {len(filtered_df)} utilisateur(s) trouvé(s) pour le {selected_date.strftime('%Y-%m-%d')}")
+# --- Résultats ---
+st.markdown(f"### 👥 {len(filtered_df)} utilisateur(s) trouvé(s) pour {selected_date}")
 if filtered_df.empty:
-    st.warning("Aucune donnée ne correspond aux filtres sélectionnés.")
+    st.warning("Aucun utilisateur ne correspond aux filtres sélectionnés.")
 else:
     st.dataframe(filtered_df[['visitor_id', 'user_name', 'profil', 'interaction_type', 'risk_level', 'engagement_score']])
 
-# --- Recommandation si un seul utilisateur ---
+# --- Recommandation personnalisée ---
 if len(filtered_df) == 1:
     user = filtered_df.iloc[0]
     st.markdown("## ✅ Recommandation personnalisée")
     if user['risk_level'] == 1:
         reco = reco_map.get(user['interaction_type'], {})
-        st.markdown("### 🎯 Basée sur le comportement général")
+        st.markdown("### 🎯 Comportement général")
         st.markdown(f"**Objectif :** {reco.get('objectif')}")
         st.markdown(f"**Action :** {reco.get('action')}")
         st.markdown(f"**Ton :** {reco.get('ton')}")
@@ -207,12 +183,4 @@ if len(filtered_df) == 1:
             if top_dom in dom_reco_map:
                 dom_reco = dom_reco_map[top_dom]
                 st.markdown("---")
-                st.markdown("### 🔍 Basée sur le comportement spécifique (DOM)")
-                st.markdown(f"**Élément cliqué :** `{top_dom}`")
-                st.markdown(f"**Objectif :** {dom_reco.get('objectif')}")
-                st.markdown(f"**Action :** {dom_reco.get('action')}")
-                st.markdown(f"**Ton :** {dom_reco.get('ton')}")
-                st.markdown(f"**Canal :** {dom_reco.get('canal')}")
-                st.markdown(f"**CTA :** {dom_reco.get('cta')}")
-    else:
-        st.info("ℹ️ Cet utilisateur n’est pas à risque élevé.")
+                st.markdown("###
