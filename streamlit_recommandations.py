@@ -2,7 +2,8 @@ import streamlit as st
 
 st.markdown("""
 <div style='text-align: center; padding: 1rem 0;'>
-    <h1 style='color: #4CAF50;'>🧠 Moteur de recommandations utilisateurs</h1>
+    <h1 style='color: #4CAF50; font-size: 3rem;'>🧠 Moteur de recommandations utilisateurs</h1>
+    <p style='color: grey;'>Analyse comportementale et suggestions personnalisées en un clic</p>
 </div>
 """, unsafe_allow_html=True)
 import pandas as pd
@@ -101,9 +102,9 @@ if selected_date == "Toutes":
 else:
     st.markdown(f"<div style='text-align: center;'><h3>👥 Résultats pour le {selected_date}</h3></div>", unsafe_allow_html=True)
 
-st.markdown(f"<div style='text-align: center;'>📊 <strong>Nombre de clics</strong> : {len(filtered_df)}</div>", unsafe_allow_html=True)
-st.markdown(f"<div style='text-align: center;'>🧍‍♂️ <strong>Utilisateurs uniques</strong> : {filtered_df['visitor_id'].nunique()}</div>", unsafe_allow_html=True)
-st.markdown(f"<div style='text-align: center;'>🧑‍💻 <strong>Noms d'utilisateurs uniques</strong> : {filtered_df['user_name_click'].nunique()}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; font-size: 1.2rem;'>📊 <strong>Nombre de clics</strong> : {len(filtered_df)}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; font-size: 1.2rem;'>🧍‍♂️ <strong>Utilisateurs uniques</strong> : {filtered_df['visitor_id'].nunique()}</div>", unsafe_allow_html=True)
+
 
 if not filtered_df.empty:
     grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
@@ -123,11 +124,19 @@ if not filtered_df.empty:
         {'selector': 'td', 'props': [('font-size', '13px')]},
     ]), use_container_width=True)
 
-    st.markdown("## 📊 Répartition des profils utilisateurs")
+    st.markdown("""
+<div style='text-align: center; margin-top: 2rem;'>
+    <h2 style='color: #1E88E5;'>📊 Répartition des profils utilisateurs</h2>
+</div>
+""", unsafe_allow_html=True)
     profil_counts = grouped_df['profil'].value_counts()
     st.bar_chart(profil_counts)
 
-    st.markdown("## ✅ Recommandations personnalisées")
+    st.markdown("""
+<div style='text-align: center; margin-top: 3rem;'>
+    <h2 style='color: #43A047;'>✅ Recommandations personnalisées</h2>
+</div>
+""", unsafe_allow_html=True)
     show_all = True
 
     unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
