@@ -70,23 +70,78 @@ def safe_mode(series):
     return mode.iloc[0] if not mode.empty else "Non défini"
 
 # 🔁 Recommandations
-reco_map = {
-    "💤 Volatile": {"objectif": "Réduire l’abandon", "action": "Relancer par push/email", "ton": "Intrigant, FOMO", "canal": "Push / Email", "cta": "⏱ Découvrez ce que vous avez manqué en 60 secondes !"},
-    "🧠 Lecteur curieux": {"objectif": "Stimuler l’engagement", "action": "Quiz ou bouton 'suivre ce thème'", "ton": "Complice", "canal": "Popup + email", "cta": "📚 Activez les suggestions selon vos lectures"},
-    "⚡ Engagé silencieux": {"objectif": "Lever les freins à l’action", "action": "Bouton de réaction", "ton": "Chaleureux", "canal": "Interface + email", "cta": "👍 Vous avez aimé ce contenu ? Faites-le savoir"},
-    "💥 Utilisateur très actif": {"objectif": "Valoriser l’activité", "action": "Contenu VIP ou contribution", "ton": "Exclusif", "canal": "Email + interface", "cta": "🏅 Merci ! Voici une exclu rien que pour vous"},
-    "📌 Standard": {"objectif": "Créer un déclic", "action": "Envoyer les contenus populaires", "ton": "Positif", "canal": "Email hebdo", "cta": "📬 Voici les contenus qui font vibrer notre communauté"}
-}
-
-dom_reco_map = {
-    "nav_menu_link": {"objectif": "Navigation rapide", "action": "Adapter les rubriques", "ton": "Clair", "canal": "Interface", "cta": "🔎 Naviguez plus vite"},
-    "read_more_btn": {"objectif": "Contenu long", "action": "Suggérer des séries", "ton": "Expert", "canal": "Email", "cta": "📘 Découvrez notre série"},
-    "search_bar": {"objectif": "Anticiper", "action": "Créer des alertes", "ton": "Pratique", "canal": "Interface", "cta": "🔔 Activez les alertes"},
-    "video_player": {"objectif": "Fidélisation vidéo", "action": "Playlist", "ton": "Immersif", "canal": "Interface", "cta": "🎬 Votre sélection vous attend"},
-    "comment_field": {"objectif": "Encourager l’expression", "action": "Mettre en avant les débats", "ton": "Communautaire", "canal": "Email", "cta": "💬 Rejoignez la discussion"},
-    "cta_banner_top": {"objectif": "Fidélisation", "action": "Teaser ou offre", "ton": "VIP", "canal": "Email", "cta": "🎁 Votre avant-première vous attend"},
-    "footer_link_about": {"objectif": "Besoin discret", "action": "Assistant ou sondage", "ton": "Bienveillant", "canal": "Popup", "cta": "🤔 On vous aide ?"}
-}
+reco_map({
+    ("💥 Utilisateur très actif", "Utilisateurs actifs", "video_player"): {
+        "objectif": "Valoriser la fidélité avec du contenu riche",
+        "action": "Proposer une série vidéo exclusive",
+        "ton": "VIP et immersif",
+        "canal": "Interface + Email",
+        "cta": "🎥 Nouvelle série exclusive pour vous"
+    },
+    ("🧠 Lecteur curieux", "Explorateurs passifs", "read_more_btn"): {
+        "objectif": "Encourager à aller plus loin",
+        "action": "Suggérer des formats longs ou des séries thématiques",
+        "ton": "Éditorial",
+        "canal": "Interface",
+        "cta": "📘 Continuez votre lecture avec notre série"
+    },
+    ("💤 Volatile", "Nouveaux utilisateurs", "nav_menu_link"): {
+        "objectif": "Structurer leur découverte",
+        "action": "Activer un menu contextuel simplifié",
+        "ton": "Guidé",
+        "canal": "Interface",
+        "cta": "🧭 Commencez par un parcours rapide"
+    },
+    ("⚡ Engagé silencieux", "Utilisateurs actifs", "comment_field"): {
+        "objectif": "Encourager l’interaction",
+        "action": "Mettre en avant les commentaires récents",
+        "ton": "Chaleureux",
+        "canal": "Interface",
+        "cta": "💬 Et vous, qu’en pensez-vous ?"
+    },
+    ("📌 Standard", "Nouveaux utilisateurs", "footer_link_about"): {
+        "objectif": "Créer un accompagnement",
+        "action": "Déclencher un assistant d’accueil",
+        "ton": "Bienveillant",
+        "canal": "Interface",
+        "cta": "👋 Suivez notre guide de démarrage"
+    },
+    ("💥 Utilisateur très actif", "Visiteurs occasionnels", "comment_field"): {
+        "objectif": "Créer une habitude de contribution",
+        "action": "Proposer un système de badges",
+        "ton": "Communautaire",
+        "canal": "Interface + Email",
+        "cta": "🏅 Participez et débloquez des récompenses !"
+    },
+    ("⚡ Engagé silencieux", "Explorateurs passifs", "search_bar"): {
+        "objectif": "Accompagner la recherche",
+        "action": "Pré-remplir la barre avec suggestions personnalisées",
+        "ton": "Pratique",
+        "canal": "Interface",
+        "cta": "🔍 Découvrez ce que les autres explorent"
+    },
+    ("💤 Volatile", "Visiteurs occasionnels", "cta_banner_top"): {
+        "objectif": "Captiver dès l’arrivée",
+        "action": "Afficher un message FOMO personnalisé",
+        "ton": "Intrigant",
+        "canal": "Interface",
+        "cta": "⚡ Ne passez pas à côté des temps forts"
+    },
+    ("🧠 Lecteur curieux", "Engagement moyen", "read_more_btn"): {
+        "objectif": "Créer de la continuité",
+        "action": "Afficher un bouton 'lire aussi' dynamique",
+        "ton": "Suggéré",
+        "canal": "Interface",
+        "cta": "📚 Voir les articles similaires"
+    },
+    ("📌 Standard", "default", "default"): {
+        "objectif": "Envoyer les meilleurs contenus",
+        "action": "Email hebdo avec articles les plus lus",
+        "ton": "Neutre",
+        "canal": "Email",
+        "cta": "📬 Découvrez ce qui a retenu l'attention cette semaine"
+    }
+})
 
 # 📥 Chargement
 df = load_data()
