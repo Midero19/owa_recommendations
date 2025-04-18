@@ -70,12 +70,43 @@ def safe_mode(series):
     return mode.iloc[0] if not mode.empty else "Non défini"
 
 # 🔁 Recommandations
+# 🔁 Recommandations
 reco_map = {
-    "💤 Volatile": {"objectif": "Réduire l’abandon", "action": "Relancer par push/email", "ton": "Intrigant, FOMO", "canal": "Push / Email", "cta": "⏱ Découvrez ce que vous avez manqué en 60 secondes !"},
-    "🧠 Lecteur curieux": {"objectif": "Stimuler l’engagement", "action": "Quiz ou bouton 'suivre ce thème'", "ton": "Complice", "canal": "Popup + email", "cta": "📚 Activez les suggestions selon vos lectures"},
-    "⚡ Engagé silencieux": {"objectif": "Lever les freins à l’action", "action": "Bouton de réaction", "ton": "Chaleureux", "canal": "Interface + email", "cta": "👍 Vous avez aimé ce contenu ? Faites-le savoir"},
-    "💥 Utilisateur très actif": {"objectif": "Valoriser l’activité", "action": "Contenu VIP ou contribution", "ton": "Exclusif", "canal": "Email + interface", "cta": "🏅 Merci ! Voici une exclu rien que pour vous"},
-    "📌 Standard": {"objectif": "Créer un déclic", "action": "Envoyer les contenus populaires", "ton": "Positif", "canal": "Email hebdo", "cta": "📬 Voici les contenus qui font vibrer notre communauté"}
+    "💤 Volatile": {
+        "objectif": "Réduire l’abandon rapide",
+        "action": "Envoyer une relance email personnalisée avec un extrait du contenu non consulté + lien direct",
+        "ton": "Urgent, intrigant (FOMO)",
+        "canal": "Push / Email",
+        "cta": "⏱ Vous êtes passé à côté d’un contenu sur-mesure ! Redécouvrez-le maintenant"
+    },
+    "🧠 Lecteur curieux": {
+        "objectif": "Stimuler l’engagement",
+        "action": "Proposer un bouton ‘Suivre ce thème’ ou ‘Recevoir plus de contenus similaires’ en bas d'article",
+        "ton": "Curieux & complice",
+        "canal": "Popup in-app + email de suivi personnalisé",
+        "cta": "📚 Continuez sur votre lancée : suivez les contenus autour de ce thème !"
+    },
+    "⚡ Engagé silencieux": {
+        "objectif": "Favoriser l’expression",
+        "action": "Ajouter un micro-feedback (👍👎) ou un champ 'Vous avez aimé ce contenu ?' à la fin de l'article",
+        "ton": "Chaleureux & bienveillant",
+        "canal": "Interface + email",
+        "cta": "👍 Vous l’avez lu, maintenant exprimez-vous !"
+    },
+    "💥 Utilisateur très actif": {
+        "objectif": "Valoriser et retenir",
+        "action": "Offrir un badge visible dans le profil ou une invitation à tester une fonctionnalité beta",
+        "ton": "Exclusif & valorisant",
+        "canal": "Email + interface",
+        "cta": "🏅 Bravo pour votre activité ! Voici un accès VIP en avant-première"
+    },
+    "📌 Standard": {
+        "objectif": "Créer un déclic",
+        "action": "Envoyer une sélection de contenus populaires adaptés à leur dernier thème consulté",
+        "ton": "Positif & incitatif",
+        "canal": "Email hebdo + suggestion dans le flux",
+        "cta": "📬 Découvrez ce que la communauté a le plus aimé cette semaine"
+    }
 }
 
 dom_reco_map = {
