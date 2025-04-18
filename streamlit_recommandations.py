@@ -11,36 +11,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 🧠 Titre centré et intro
 st.markdown("""
 <h1 style='text-align: center;'>📊 OWA – Moteur de recommandations</h1>
 """, unsafe_allow_html=True)
 st.markdown("---")
 
-# 📦 Chargement des données
+# 📆 Téléchargement des données
 os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
 file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"
 output_path = "final_owa.csv"
-
-cluster_labels = {
-    0: "Utilisateurs actifs",
-    1: "Visiteurs occasionnels",
-    3: "Engagement moyen",
-    4: "Nouveaux utilisateurs",
-    6: "Explorateurs passifs"
-}
-
-def classify_interaction(row):
-    if row['is_bounce'] == 1 or row['bounce_rate'] > 80:
-        return "💤 Volatile"
-    elif row['num_pageviews'] > 10 and row['num_actions'] < 3:
-        return "🧠 Lecteur curieux"
-    elif row['avg_session_duration'] > 300 and row['num_actions'] < 3:
-        return "⚡ Engagé silencieux"
-    elif row['num_actions'] > 10 or row['num_comments'] > 3:
-        return "💥 Utilisateur très actif"
-    else:
-        return "📌 Standard"
 
 @st.cache_data
 def load_data():
@@ -57,8 +36,6 @@ def load_data():
     df['session_id'] = df['session_id'].astype(str)
     df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
     df['user_name_click'] = df['user_name_click'].fillna("Inconnu")
-    df["profil"] = df["cluster"].map(cluster_labels)
-    df['interaction_type'] = df.apply(classify_interaction, axis=1)
     return df
 
 @st.cache_data
@@ -69,8 +46,36 @@ def safe_mode(series):
     mode = series.mode()
     return mode.iloc[0] if not mode.empty else "Non défini"
 
-# 🔁 Recommandations
-reco_map({
+def classify_interaction(row):
+    if row['is_bounce'] == 1 or row['bounce_rate'] > 80:
+        return "🛌 Volatile"
+    elif row['num_pageviews'] > 10 and row['num_actions'] < 3:
+        return "🧠 Lecteur curieux"
+    elif row['avg_session_duration'] > 300 and row['num_actions'] < 3:
+        return "⚡ Engagé silencieux"
+    elif row['num_actions'] > 10 or row['num_comments'] > 3:
+        return "💥 Utilisateur très actif"
+    else:
+        return "📌 Standard"
+
+# Données utilisateur
+cluster_labels = {
+    0: "Utilisateurs actifs",
+    1: "Visiteurs occasionnels",
+    3: "Engagement moyen",
+    4: "Nouveaux utilisateurs",
+    6: "Explorateurs passifs"
+}
+
+# Recommandations prédéfinies dans reco_map (voir suite du code)
+interaction_types = ["💥 Utilisateur très actif", "⚡ Engagé silencieux", "🧠 Lecteur curieux", "🛌 Volatile", "📌 Standard"]
+profils = ["Utilisateurs actifs", "Visiteurs occasionnels", "Engagement moyen", "Nouveaux utilisateurs", "Explorateurs passifs"]
+dom_elements = ["default", "nav_menu_link", "read_more_btn", "search_bar", "video_player", "comment_field", "cta_banner_top", "footer_link_about"]
+
+reco_map = {}
+
+# Recos personnalisées spécifiques (15 exemples)
+reco_map.update({
     ("💥 Utilisateur très actif", "Utilisateurs actifs", "video_player"): {
         "objectif": "Valoriser la fidélité avec du contenu riche",
         "action": "Proposer une série vidéo exclusive",
@@ -85,12 +90,12 @@ reco_map({
         "canal": "Interface",
         "cta": "📘 Continuez votre lecture avec notre série"
     },
-    ("💤 Volatile", "Nouveaux utilisateurs", "nav_menu_link"): {
+    ("🛌 Volatile", "Nouveaux utilisateurs", "nav_menu_link"): {
         "objectif": "Structurer leur découverte",
         "action": "Activer un menu contextuel simplifié",
         "ton": "Guidé",
         "canal": "Interface",
-        "cta": "🧭 Commencez par un parcours rapide"
+        "cta": "🧱 Commencez par un parcours rapide"
     },
     ("⚡ Engagé silencieux", "Utilisateurs actifs", "comment_field"): {
         "objectif": "Encourager l’interaction",
@@ -111,7 +116,7 @@ reco_map({
         "action": "Proposer un système de badges",
         "ton": "Communautaire",
         "canal": "Interface + Email",
-        "cta": "🏅 Participez et débloquez des récompenses !"
+        "cta": "🏋️ Participez et débloquez des récompenses !"
     },
     ("⚡ Engagé silencieux", "Explorateurs passifs", "search_bar"): {
         "objectif": "Accompagner la recherche",
@@ -120,7 +125,7 @@ reco_map({
         "canal": "Interface",
         "cta": "🔍 Découvrez ce que les autres explorent"
     },
-    ("💤 Volatile", "Visiteurs occasionnels", "cta_banner_top"): {
+    ("🛌 Volatile", "Visiteurs occasionnels", "cta_banner_top"): {
         "objectif": "Captiver dès l’arrivée",
         "action": "Afficher un message FOMO personnalisé",
         "ton": "Intrigant",
@@ -142,6 +147,26 @@ reco_map({
         "cta": "📬 Découvrez ce qui a retenu l'attention cette semaine"
     }
 })
+
+def get_recommendation(interaction, profil, dom):
+    if pd.isna(dom):
+        dom = "default"
+    keys_to_try = [
+        (interaction, profil, dom),
+        (interaction, profil, "default"),
+        (interaction, "default", "default"),
+        ("📌 Standard", "default", "default")
+    ]
+    for key in keys_to_try:
+        if key in reco_map:
+            return reco_map[key]
+    return {
+        "objectif": "Aucune recommandation trouvée",
+        "action": "Analyser davantage le comportement utilisateur",
+        "ton": "Neutre",
+        "canal": "Email",
+        "cta": "📩 Contactez-nous pour en savoir plus"
+    }
 
 # 📥 Chargement
 df = load_data()
