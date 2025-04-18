@@ -16,7 +16,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.markdown("---")
 
-# 📆 Téléchargement des données
+# 🗖️ Téléchargement des données
 os.environ["STREAMLIT_WATCH_DISABLE"] = "true"
 file_id = "1NMvtE9kVC2re36hK_YtvjOxybtYqGJ5Q"
 output_path = "final_owa.csv"
@@ -36,6 +36,8 @@ def load_data():
     df['session_id'] = df['session_id'].astype(str)
     df['yyyymmdd_click'] = pd.to_datetime(df['yyyymmdd_click'].astype(str), format="%Y%m%d", errors='coerce')
     df['user_name_click'] = df['user_name_click'].fillna("Inconnu")
+    df['profil'] = df['cluster'].map(cluster_labels)
+    df['interaction_type'] = df.apply(classify_interaction, axis=1)
     return df
 
 @st.cache_data
@@ -67,14 +69,14 @@ cluster_labels = {
     6: "Explorateurs passifs"
 }
 
-# Recommandations prédéfinies dans reco_map (voir suite du code)
+# Recommandations
 interaction_types = ["💥 Utilisateur très actif", "⚡ Engagé silencieux", "🧠 Lecteur curieux", "🛌 Volatile", "📌 Standard"]
 profils = ["Utilisateurs actifs", "Visiteurs occasionnels", "Engagement moyen", "Nouveaux utilisateurs", "Explorateurs passifs"]
 dom_elements = ["default", "nav_menu_link", "read_more_btn", "search_bar", "video_player", "comment_field", "cta_banner_top", "footer_link_about"]
 
 reco_map = {}
 
-# Recos personnalisées spécifiques (15 exemples)
+# Recommandations personnalisées spécifiques (10 exemples)
 reco_map.update({
     ("💥 Utilisateur très actif", "Utilisateurs actifs", "video_player"): {
         "objectif": "Valoriser la fidélité avec du contenu riche",
@@ -168,39 +170,12 @@ def get_recommendation(interaction, profil, dom):
         "cta": "📩 Contactez-nous pour en savoir plus"
     }
 
-# 📥 Chargement
+# 📊 Visualisation de l'engagement utilisateur
+st.markdown("## 📊 Évolution de l'engagement utilisateur")
 df = load_data()
-
-# 🎛️ Filtres
-st.sidebar.header("🎯 Filtres utilisateur")
-all_dates = sorted(df['yyyymmdd_click'].dt.date.dropna().unique())
-selected_date = st.sidebar.selectbox("📅 Date de clic :", ["Toutes"] + list(all_dates))
-selected_session = st.sidebar.selectbox("🧾 Session ID :", ["Tous"] + sorted(df['session_id'].dropna().unique()))
-selected_visitor = st.sidebar.selectbox("🆔 Visitor ID :", ["Tous"] + sorted(df['visitor_id'].dropna().unique()))
-selected_user = st.sidebar.selectbox("👤 Nom d'utilisateur :", ["Tous"] + sorted(df['user_name_click'].dropna().unique()))
-selected_risk = st.sidebar.selectbox("⚠️ Niveau de risque :", ["Tous"] + sorted(df['risk_level'].dropna().unique()))
-st.sidebar.markdown("---")
-max_rows = st.sidebar.slider("📄 Nombre de lignes visibles :", 10, 500, 100)
-max_recos = st.sidebar.slider("🤖 Nb de recommandations :", 1, 20, 10)
-
-# 🔎 Application des filtres
-filtered_df = df.copy()
-if selected_date != "Toutes":
-    filtered_df = filtered_df[filtered_df['yyyymmdd_click'].dt.date == selected_date]
-if selected_session != "Tous":
-    filtered_df = filtered_df[filtered_df['session_id'] == selected_session]
-if selected_visitor != "Tous":
-    filtered_df = filtered_df[filtered_df['visitor_id'] == selected_visitor]
-if selected_user != "Tous":
-    filtered_df = filtered_df[filtered_df['user_name_click'] == selected_user]
-if selected_risk != "Tous":
-    filtered_df = filtered_df[filtered_df['risk_level'] == selected_risk]
-
-st.markdown("## 📈 Évolution de l'engagement utilisateur")
-
 daily_engagement = (
-    filtered_df.dropna(subset=["yyyymmdd_click", "engagement_score"])
-    .groupby(filtered_df['yyyymmdd_click'].dt.date)["engagement_score"]
+    df.dropna(subset=["yyyymmdd_click", "engagement_score"])
+    .groupby(df['yyyymmdd_click'].dt.date)["engagement_score"]
     .mean()
     .reset_index()
 )
@@ -213,61 +188,20 @@ if not daily_engagement.empty:
     ax.set_title("Évolution du taux d'engagement dans le temps")
     ax.grid(True)
     plt.xticks(rotation=45)
-
     col1, col2, col3 = st.columns([1, 6, 1])
     with col2:
         st.pyplot(fig)
 else:
     st.info("Pas de données disponibles pour afficher l'évolution.")
 
-# 📋 Résumé utilisateurs
-st.markdown("## 👥 Résultats des utilisateurs filtrés")
-if not filtered_df.empty:
-    grouped_df = filtered_df.groupby(['visitor_id', 'user_name_click']).agg({
-        'yyyymmdd_click': 'min',
-        'profil': safe_mode,
-        'interaction_type': safe_mode,
-        'risk_level': 'max'
+# 📋 Tableau des utilisateurs
+st.markdown("## 📋 Résumé des utilisateurs")
+if not df.empty:
+    resume = df.groupby(["visitor_id", "user_name_click"]).agg({
+        "profil": safe_mode,
+        "interaction_type": safe_mode,
+        "risk_level": safe_mode
     }).reset_index()
-
-    st.dataframe(grouped_df.head(max_rows), use_container_width=True)
-
-    filters_applied = any([
-        selected_date != "Toutes",
-        selected_session != "Tous",
-        selected_visitor != "Tous",
-        selected_user != "Tous",
-        selected_risk != "Tous"
-    ])
-
-    if filters_applied:
-        st.markdown("## ✅ Recommandations personnalisées")
-        unique_users = filtered_df.drop_duplicates(subset=['visitor_id', 'user_name_click', 'interaction_type', 'profil'])
-        dom_by_visitor = get_dom_by_visitor(df)
-        display_users = unique_users.head(max_recos)
-
-        for _, user in display_users.iterrows():
-            if user['interaction_type'] in reco_map:
-                reco = reco_map[user['interaction_type']]
-                with st.expander(f"👤 {user['user_name_click']} – {user['interaction_type']} (profil : {user['profil']}, risque : {user['risk_level']})"):
-                    st.markdown("### 🎯 Comportement général")
-                    st.markdown(f"**Objectif :** {reco['objectif']}")
-                    st.markdown(f"**Action :** {reco['action']}")
-                    st.markdown(f"**Ton :** {reco['ton']}")
-                    st.markdown(f"**Canal :** {reco['canal']}")
-                    st.markdown(f"**CTA :** {reco['cta']}")
-
-                    top_dom = dom_by_visitor.get(user['visitor_id'])
-                    if pd.notna(top_dom) and top_dom in dom_reco_map:
-                        dom = dom_reco_map[top_dom]
-                        st.markdown("### 🔍 Élément DOM principal")
-                        st.markdown(f"**Élément :** {top_dom}")
-                        st.markdown(f"**Objectif :** {dom['objectif']}")
-                        st.markdown(f"**Action :** {dom['action']}")
-                        st.markdown(f"**Ton :** {dom['ton']}")
-                        st.markdown(f"**Canal :** {dom['canal']}")
-                        st.markdown(f"**CTA :** {dom['cta']}")
-    else:
-        st.info("🔍 Appliquez au moins un filtre pour afficher des recommandations personnalisées.")
+    st.dataframe(resume.head(100), use_container_width=True)
 else:
-    st.warning("Aucun utilisateur trouvé avec les filtres appliqués.")
+    st.warning("Aucune donnée utilisateur disponible.")
